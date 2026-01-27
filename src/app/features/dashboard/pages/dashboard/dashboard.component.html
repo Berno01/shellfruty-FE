@@ -1,0 +1,537 @@
+<div class="min-h-screen bg-slate-50 p-6 space-y-8 pb-24">
+  <!-- Header & Filters -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black text-slate-900 tracking-tight">
+        Dashboard
+      </h1>
+      <p class="text-slate-500 font-medium text-sm mt-1">
+        Resumen de ventas y métricas
+      </p>
+    </div>
+
+    <div
+      class="flex flex-col sm:flex-row gap-3 bg-white p-2 rounded-2xl shadow-sm border border-slate-100"
+    >
+      <!-- Sucursal Filter -->
+      <select
+        [(ngModel)]="selectedSucursalId"
+        class="bg-slate-50 border-0 text-slate-700 text-sm rounded-xl focus:ring-2 focus:ring-[#eaa6b6] block p-2.5 font-bold min-w-[200px]"
+      >
+        <option [ngValue]="undefined">Todas las Sucursales</option>
+        <option *ngFor="let suc of sucursales()" [value]="suc.id_sucursal">
+          {{ suc.nombre_sucursal }}
+        </option>
+      </select>
+
+      <div class="h-px sm:h-auto sm:w-px bg-slate-200 mx-1"></div>
+
+      <!-- Date Filter -->
+      <div class="flex items-center gap-2">
+        <input
+          type="date"
+          [(ngModel)]="startDate"
+          class="bg-slate-50 border-0 text-slate-700 text-sm rounded-xl focus:ring-2 focus:ring-[#eaa6b6] block p-2.5 font-bold"
+        />
+
+        <span *ngIf="dateMode() === 'range'" class="text-slate-400 font-bold"
+          >-</span
+        >
+
+        <input
+          *ngIf="dateMode() === 'range'"
+          type="date"
+          [(ngModel)]="endDate"
+          class="bg-slate-50 border-0 text-slate-700 text-sm rounded-xl focus:ring-2 focus:ring-[#eaa6b6] block p-2.5 font-bold"
+        />
+
+        <button
+          (click)="toggleDateMode()"
+          class="p-2.5 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors tooltip-trigger"
+          title="Rango de fechas"
+        >
+          <svg
+            *ngIf="dateMode() === 'single'"
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+          <svg
+            *ngIf="dateMode() === 'range'"
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-5 w-5 text-[#eaa6b6]"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div
+    *ngIf="loading()"
+    class="h-96 flex flex-col items-center justify-center text-slate-400 gap-4"
+  >
+    <div
+      class="w-12 h-12 border-4 border-[#eaa6b6]/30 border-t-[#eaa6b6] rounded-full animate-spin"
+    ></div>
+    <span class="font-medium animate-pulse">Cargando métricas...</span>
+  </div>
+
+  <div
+    *ngIf="!loading() && keys()"
+    class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500"
+  >
+    <!-- 1. KPI Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Card: Efectivo -->
+      <div
+        class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-all"
+      >
+        <div class="relative z-10">
+          <p class="text-slate-500 text-sm font-bold mb-1">Total Efectivo</p>
+          <h3 class="text-3xl font-black text-slate-900 tracking-tight">
+            {{ keys()?.monto_efectivo_total | number: "1.0-2" }}
+            <span class="text-sm text-slate-400 font-medium">Bs.</span>
+          </h3>
+        </div>
+        <div
+          class="absolute right-4 top-4 p-3 bg-green-50 rounded-2xl text-green-600 group-hover:scale-110 transition-transform"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+            />
+          </svg>
+        </div>
+      </div>
+
+      <!-- Card: QR -->
+      <div
+        class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-all"
+      >
+        <div class="relative z-10">
+          <p class="text-slate-500 text-sm font-bold mb-1">Total QR</p>
+          <h3 class="text-3xl font-black text-slate-900 tracking-tight">
+            {{ keys()?.monto_qr_total | number: "1.0-2" }}
+            <span class="text-sm text-slate-400 font-medium">Bs.</span>
+          </h3>
+        </div>
+        <div
+          class="absolute right-4 top-4 p-3 bg-pink-50 rounded-2xl text-[#eaa6b6] group-hover:scale-110 transition-transform"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 9v2m0 6v-2H5a2 2 0 01-2-2V9a2 2 0 012-2h5a2 2 0 012 2v2a2 2 0 01-2 2H5v2H2m18 0h2"
+            />
+          </svg>
+        </div>
+      </div>
+
+      <!-- Card: Total Ventas -->
+      <div
+        class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-all"
+      >
+        <div class="relative z-10">
+          <p class="text-slate-500 text-sm font-bold mb-1">Total General</p>
+          <h3 class="text-3xl font-black text-slate-900 tracking-tight">
+            {{ keys()?.total_general | number: "1.0-2" }}
+            <span class="text-sm text-slate-400 font-medium">Bs.</span>
+          </h3>
+        </div>
+        <div
+          class="absolute right-4 top-4 p-3 bg-blue-50 rounded-2xl text-blue-600 group-hover:scale-110 transition-transform"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+        </div>
+      </div>
+
+      <!-- Card: Total Items -->
+      <div
+        class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden group hover:shadow-md transition-all"
+      >
+        <div class="relative z-10">
+          <p class="text-slate-500 text-sm font-bold mb-1">
+            Total productos vendidos
+          </p>
+          <h3 class="text-3xl font-black text-slate-900 tracking-tight">
+            {{ keys()?.cantidad_total_items }}
+          </h3>
+        </div>
+        <div
+          class="absolute right-4 top-4 p-3 bg-orange-50 rounded-2xl text-orange-500 group-hover:scale-110 transition-transform"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+            />
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- 2. Vasos Más Vendidos (Vertical Bar Chart) - Takes 2 cols -->
+      <div
+        class="lg:col-span-2 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100"
+      >
+        <h3 class="text-xl font-extrabold text-slate-900 mb-6">
+          Vasos más vendidos
+        </h3>
+
+        <div class="h-64 flex items-end justify-between gap-4">
+          <div
+            *ngFor="let menu of graphs()?.menus_mas_vendidos"
+            class="group flex flex-col items-center flex-1 h-full justify-end"
+          >
+            <!-- Value Label -->
+            <span
+              class="mb-2 font-black text-slate-900 text-sm animate-in fade-in slide-in-from-bottom-2"
+              >{{ menu.cantidad }}</span
+            >
+
+            <!-- Bar Bg -->
+            <div
+              class="w-full max-w-[60px] bg-slate-50 rounded-2xl h-full relative overflow-hidden flex items-end"
+            >
+              <!-- Bar Fill -->
+              <div
+                class="w-full bg-[#eaa6b6] rounded-t-2xl transition-all duration-1000 ease-out group-hover:bg-[#e293a5]"
+                [style.height.%]="
+                  (parseInt(menu.cantidad) / maxMenuSold()) * 100
+                "
+              ></div>
+            </div>
+
+            <!-- Name Label -->
+            <span
+              class="mt-3 text-xs font-bold text-slate-500 text-center leading-tight"
+              >{{ menu.nombre_menu }}</span
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Categorias (Donuts - First 2) - Takes 1 col, stacked -->
+      <div class="lg:col-span-1 space-y-4">
+        <div
+          *ngFor="let cat of primaryCategories()"
+          class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 h-[calc(50%-0.5rem)] flex flex-col justify-center"
+        >
+          <h4 class="font-extrabold text-slate-900 mb-4">
+            {{ cat.nombre_categoria }}
+          </h4>
+          <!-- ... donut content ... -->
+          <div class="flex items-center gap-4">
+            <!-- SVG Donut -->
+            <div class="relative w-32 h-32 shrink-0">
+              <svg
+                viewBox="0 0 40 40"
+                class="transform -rotate-90 w-full h-full"
+              >
+                <!-- Background Circle -->
+                <circle
+                  cx="20"
+                  cy="20"
+                  r="15.9155"
+                  fill="none"
+                  stroke="#f1f5f9"
+                  stroke-width="6"
+                />
+
+                <!-- Segments -->
+                <circle
+                  *ngFor="let seg of getDonutSegments(cat.ingredientes)"
+                  cx="20"
+                  cy="20"
+                  r="15.9155"
+                  fill="none"
+                  [attr.stroke]="seg.color"
+                  stroke-width="6"
+                  [attr.stroke-dasharray]="seg.dashArray"
+                  stroke-dashoffset="0"
+                  [attr.transform]="'rotate(' + seg.rotation + ' 20 20)'"
+                  class="transition-all duration-1000"
+                />
+              </svg>
+              <!-- Center Text -->
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span class="text-xs font-bold text-slate-400">Top</span>
+              </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="flex-1 space-y-2">
+              <div
+                *ngFor="let seg of getDonutSegments(cat.ingredientes)"
+                class="flex items-center justify-between text-sm"
+              >
+                <div class="flex items-center gap-2">
+                  <div
+                    class="w-3 h-3 rounded-full"
+                    [style.background-color]="seg.color"
+                  ></div>
+                  <span
+                    class="text-slate-600 font-medium truncate max-w-[100px]"
+                    [title]="seg.nombre_ingrediente"
+                    >{{ seg.nombre_ingrediente }}</span
+                  >
+                </div>
+                <span class="font-bold text-slate-900">{{ seg.percent }}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Remaining Categories + Hours Chart -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- 4. Hours Chart (Area) - Right column (2 cols) -->
+      <div
+        class="lg:col-span-2 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden lg:order-2"
+      >
+        <div class="flex justify-between items-center mb-8 relative z-10">
+          <div>
+            <h3 class="text-xl font-extrabold text-slate-900">
+              Horas más concurrentes
+            </h3>
+            <p class="text-slate-500 text-sm font-medium">
+              Tendencia de ventas por hora
+            </p>
+          </div>
+
+          <button class="p-2 text-slate-400 hover:text-[#eaa6b6]">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div class="h-64 w-full relative">
+          <!-- Labels Y Axis (Implied/Simplified) -->
+
+          <!-- Chart SVG -->
+          <svg
+            class="w-full h-full overflow-visible"
+            preserveAspectRatio="none"
+            viewBox="0 0 1000 300"
+          >
+            <!-- Grid Lines -->
+            <line
+              x1="0"
+              y1="0"
+              x2="1000"
+              y2="0"
+              stroke="#f1f5f9"
+              stroke-dasharray="4 4"
+            />
+            <line
+              x1="0"
+              y1="75"
+              x2="1000"
+              y2="75"
+              stroke="#f1f5f9"
+              stroke-dasharray="4 4"
+            />
+            <line
+              x1="0"
+              y1="150"
+              x2="1000"
+              y2="150"
+              stroke="#f1f5f9"
+              stroke-dasharray="4 4"
+            />
+            <line
+              x1="0"
+              y1="225"
+              x2="1000"
+              y2="225"
+              stroke="#f1f5f9"
+              stroke-dasharray="4 4"
+            />
+
+            <!-- Gradient Definition -->
+            <defs>
+              <linearGradient id="gradientArea" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#eaa6b6" stop-opacity="0.4" />
+                <stop offset="100%" stop-color="#eaa6b6" stop-opacity="0.0" />
+              </linearGradient>
+            </defs>
+
+            <!-- Area Fill -->
+            <path [attr.d]="hoursChartPath().area" fill="url(#gradientArea)" />
+
+            <!-- Stroke Line -->
+            <path
+              [attr.d]="hoursChartPath().line"
+              fill="none"
+              stroke="#eaa6b6"
+              stroke-width="4"
+              stroke-linecap="round"
+              vector-effect="non-scaling-stroke"
+            />
+
+            <!-- Dots (Optional - simplified for now, as positioning requires exact coords) -->
+          </svg>
+
+          <!-- X Axis Labels (HTML overlay for better text handling) -->
+          <div
+            class="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-slate-400 font-bold px-2 pointer-events-none translate-y-6"
+          >
+            <span>07:00</span>
+            <span>10:00</span>
+            <span>13:00</span>
+            <span>16:00</span>
+            <span>19:00</span>
+            <span>22:00</span>
+          </div>
+        </div>
+
+        <!-- Spacer for X Axis -->
+        <div class="h-6"></div>
+      </div>
+
+      <!-- 5. Secondary Categories (Stacked) - Left column -->
+      <div class="lg:col-span-1 space-y-4 lg:order-1">
+        <div
+          *ngFor="let cat of secondaryCategories()"
+          class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100"
+        >
+          <h4 class="font-extrabold text-slate-900 mb-4">
+            {{ cat.nombre_categoria }}
+          </h4>
+
+          <div class="flex items-center gap-4">
+            <!-- SVG Donut -->
+            <div class="relative w-32 h-32 shrink-0">
+              <svg
+                viewBox="0 0 40 40"
+                class="transform -rotate-90 w-full h-full"
+              >
+                <!-- Background Circle -->
+                <circle
+                  cx="20"
+                  cy="20"
+                  r="15.9155"
+                  fill="none"
+                  stroke="#f1f5f9"
+                  stroke-width="6"
+                />
+
+                <!-- Segments -->
+                <circle
+                  *ngFor="let seg of getDonutSegments(cat.ingredientes)"
+                  cx="20"
+                  cy="20"
+                  r="15.9155"
+                  fill="none"
+                  [attr.stroke]="seg.color"
+                  stroke-width="6"
+                  [attr.stroke-dasharray]="seg.dashArray"
+                  stroke-dashoffset="0"
+                  [attr.transform]="'rotate(' + seg.rotation + ' 20 20)'"
+                  class="transition-all duration-1000"
+                />
+              </svg>
+              <!-- Center Text -->
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span class="text-xs font-bold text-slate-400">Top</span>
+              </div>
+            </div>
+
+            <!-- Legend -->
+            <div class="flex-1 space-y-2">
+              <div
+                *ngFor="let seg of getDonutSegments(cat.ingredientes)"
+                class="flex items-center justify-between text-sm"
+              >
+                <div class="flex items-center gap-2">
+                  <div
+                    class="w-3 h-3 rounded-full"
+                    [style.background-color]="seg.color"
+                  ></div>
+                  <span
+                    class="text-slate-600 font-medium truncate max-w-[100px]"
+                    [title]="seg.nombre_ingrediente"
+                    >{{ seg.nombre_ingrediente }}</span
+                  >
+                </div>
+                <span class="font-bold text-slate-900">{{ seg.percent }}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

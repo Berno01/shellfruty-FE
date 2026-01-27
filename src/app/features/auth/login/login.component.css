@@ -1,0 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
+
+:host {
+  font-family: 'Montserrat', sans-serif;
+}
+
+body, html {
+  background: #f8fafc;
+}
+
+input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #eaa6b6;
+}
+
+button {
+  transition: background 0.2s;
+}
