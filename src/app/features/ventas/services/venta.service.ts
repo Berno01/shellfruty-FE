@@ -51,7 +51,7 @@ export class VentaService {
     }
 
     return this.apiService.get<ApiResponse<Venta[]>>(
-      `${this.ENDPOINT}/`,
+      `${this.ENDPOINT}`,
       httpParams,
     );
   }
@@ -288,3 +288,6 @@ export class VentaService {
     return user?.nombre_rol?.toLowerCase().includes("admin") || false;
   }
 }
+
+
+
