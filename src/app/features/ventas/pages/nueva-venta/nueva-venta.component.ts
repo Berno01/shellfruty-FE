@@ -12,6 +12,7 @@ import { CategoriaMenu } from "../../../menu/services/menu.service";
 import { SucursalService } from "../../../../core/services/sucursal.service";
 import { AuthService } from "../../../../core/services/auth.service";
 import { getTodayBolivia } from "../../../../core/utils/date.utils";
+import { PrinterService } from "../../../../core/services/printer.service";
 
 interface CartItem {
   id_menu: number;
@@ -637,6 +638,7 @@ export class NuevaVentaComponent implements OnInit {
   private authService = inject(AuthService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private printerService = inject(PrinterService);
 
   isEditing = signal<boolean>(false);
   editVentaId = signal<number | null>(null);
@@ -1020,6 +1022,8 @@ export class NuevaVentaComponent implements OnInit {
           const action = this.isEditing() ? "actualizada" : "creada";
           console.log(`Venta ${action} exitosamente:`, response.data);
           this.triggerNotification(`Venta ${action} exitosamente`);
+          // Imprimir ticket automáticamente en RawBT (tablet Android con impresora USB OTG)
+          this.printerService.printReceipt(response.data, this.nombreSucursal());
           // Redirigir a la lista de ventas tras breve pausa
           setTimeout(() => {
             this.router.navigate(["/ventas"]);
