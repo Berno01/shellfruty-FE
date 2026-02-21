@@ -2,74 +2,62 @@ import { Injectable } from "@angular/core";
 import { VentaDetalle } from "../../features/ventas/models/venta.models";
 
 /**
- * PrinterService — Impresora térmica SAT 80 mm
+ * PrinterService — Impresora termica SAT 80 mm
  *
- * Genera un ticket de texto plano formateado para papel de 80 mm (48 chars),
- * lo codifica en base64 UTF-8 seguro y lo envía a RawBT via deep link.
- *
- * En tablet Android con RawBT instalado: imprime directo por USB OTG.
- * En PC / dispositivos sin RawBT: el error se captura silenciosamente.
+ * Ticket de texto plano (48 chars) → base64 → RawBT deep link.
+ * Todo el texto pasa por ascii() para quedarse en caracteres ASCII puro
+ * (sin tildes, n~, signos invertidos) ya que la SAT usa CP437 y no UTF-8.
  */
 @Injectable({
   providedIn: "root",
 })
 export class PrinterService {
-  /**
-   * Ancho en caracteres para papel de 80 mm con fuente estándar.
-   * Impresora SAT 80 mm → 48 chars por línea.
-   */
+  /** Papel 80 mm con fuente estandar = 48 caracteres por linea */
   private readonly LINE_WIDTH = 48;
 
-  // Columnas de la tabla de productos (deben sumar LINE_WIDTH)
-  // | PRODUCTO (26) | CANT (4) |  | P.UNIT (8) |  | TOTAL (8) |
-  private readonly COL_NAME  = 26; // Nombre del producto
-  private readonly COL_QTY   = 4;  // Cantidad
-  private readonly COL_UNIT  = 8;  // Precio unitario "00.00 Bs"  (sin espacio Bs. queda bien)
-  private readonly COL_TOTAL = 8;  // Subtotal "000.00 Bs"
-  // 26 + 1 + 4 + 1 + 8 + 1 + 8 = 49 → usar separador compacto: 26+1+4+1+8+8 = 48 ✓
-
   /**
-   * Genera el ticket y lo envía a RawBT.
-   *
-   * @param venta          Detalle completo de la venta (respuesta de la API)
-   * @param sucursalNombre Nombre legible de la sucursal
+   * Columnas de la tabla de productos.
+   * NOMBRE(27) + sp(1) + CANT(4) + sp(1) + P/U(7) + sp(1) + TOTAL(7) = 48
+   * Montos sin "Bs." en celdas para no desbordar (max "9999.99" = 7 chars).
    */
+  private readonly COL_NAME  = 27;
+  private readonly COL_QTY   = 4;
+  private readonly COL_UNIT  = 7;
+  private readonly COL_TOTAL = 7;
+
+  // ─────────────────── API publica ───────────────────────────────
+
   printReceipt(venta: VentaDetalle, sucursalNombre: string = ""): void {
     try {
       const ticket = this.buildTicket(venta, sucursalNombre);
       const base64 = this.toBase64UTF8(ticket);
       window.location.href = "rawbt:base64," + base64;
     } catch (error) {
-      // Fallback silencioso: en PC/dispositivos sin RawBT la app no se rompe
-      console.warn(
-        "[PrinterService] RawBT no disponible o error al imprimir:",
-        error,
-      );
+      console.warn("[PrinterService] RawBT no disponible:", error);
     }
   }
 
-  // ─────────────────── Construcción del ticket ───────────────────
+  // ─────────────────── Construccion del ticket ───────────────────
 
   private buildTicket(venta: VentaDetalle, sucursalNombre: string): string {
     const lw   = this.LINE_WIDTH;
     const sep  = "=".repeat(lw);
     const dash = "-".repeat(lw);
-
-    const fecha  = this.formatFecha(venta.fecha);
-    const cajero = venta.username ?? "Desconocido";
+    const fecha = this.formatFecha(venta.fecha);
 
     const lines: string[] = [];
 
-    // ── Encabezado ──────────────────────────────────────────────
+    // ── Encabezado compacto ──────────────────────────────────────
     lines.push(sep);
     lines.push(this.center("SHELLFRUTY", lw));
-    if (sucursalNombre) lines.push(this.center(sucursalNombre, lw));
-    lines.push(this.center("Punto de Venta", lw));
+    if (sucursalNombre) {
+      lines.push(this.center(this.ascii(sucursalNombre), lw));
+    }
     lines.push(sep);
 
-    lines.push(this.row("Fecha:",    fecha,               lw));
-    lines.push(this.row("Cajero:",   cajero,              lw));
-    lines.push(this.row("Venta N°:", String(venta.id_venta), lw));
+    // ── ID de venta prominente + fecha ───────────────────────────
+    lines.push(this.center("# VENTA " + String(venta.id_venta), lw));
+    lines.push(this.center(fecha, lw));
     lines.push(dash);
 
     // ── Tabla de productos ───────────────────────────────────────
@@ -90,49 +78,49 @@ export class PrinterService {
     lines.push(dash);
 
     // ── Totales ──────────────────────────────────────────────────
-    // Separador visual antes de los totales
     if (venta.monto_efectivo > 0 && venta.monto_qr > 0) {
-      lines.push(this.row("  Efectivo:",    this.fmt(venta.monto_efectivo), lw));
-      lines.push(this.row("  QR/Transfer:", this.fmt(venta.monto_qr),       lw));
+      lines.push(this.row("  Efectivo:", this.fmtBs(venta.monto_efectivo), lw));
+      lines.push(this.row("  QR/Transfer:", this.fmtBs(venta.monto_qr), lw));
       lines.push(dash);
     } else if (venta.monto_qr > 0) {
-      lines.push(this.row("  QR/Transfer:", this.fmt(venta.monto_qr), lw));
+      lines.push(this.row("  QR/Transfer:", this.fmtBs(venta.monto_qr), lw));
       lines.push(dash);
     }
 
-    lines.push(this.row("*** TOTAL:", this.fmt(venta.total), lw));
+    lines.push(this.row("*** TOTAL:", this.fmtBs(venta.total), lw));
 
-    // ── Pie de ticket ────────────────────────────────────────────
+    // ── Pie ──────────────────────────────────────────────────────
     lines.push(sep);
-    lines.push(this.center("¡Gracias por su compra!", lw));
-    lines.push(this.center("Vuelva pronto :)", lw));
+    lines.push(this.center("!Gracias por su compra case!", lw));
     lines.push(sep);
 
-    // Avance de papel para el corte (SAT recomienda 3-5 saltos extra)
+    // Avance de papel para corte SAT
     lines.push("\n\n\n\n\n");
 
     return lines.join("\n");
   }
 
-  // ─────────────────── Encabezado y filas de tabla ───────────────
+  // ─────────────────── Tabla ─────────────────────────────────────
 
   /**
-   * Cabecera de columnas:
-   * PRODUCTO              CANT  P.UNIT  TOTAL
-   * 26 chars              4     8       8  = 46 + 2 espacios = 48
+   * PRODUCTO                    CANT  P/UNIT   TOTAL
+   * (27)                        (4)   (7)      (7)   = 48
    */
   private tableHeader(): string {
-    const name  = "PRODUCTO".padEnd(this.COL_NAME);
-    const qty   = "CANT".padStart(this.COL_QTY);
-    const unit  = "P.UNIT".padStart(this.COL_UNIT);
-    const total = "TOTAL".padStart(this.COL_TOTAL);
-    return `${name} ${qty} ${unit}${total}`;
+    const lw = this.LINE_WIDTH;
+    const right =
+      "CANT".padStart(this.COL_QTY) +
+      " " +
+      "P/UNIT".padStart(this.COL_UNIT) +
+      " " +
+      "TOTAL".padStart(this.COL_TOTAL);
+    // right.length = 4+1+7+1+7 = 20  → name col = 48-1-20 = 27 ✓
+    return "PRODUCTO".padEnd(lw - right.length - 1) + " " + right;
   }
 
   /**
-   * Genera las líneas de una fila de producto.
-   * La primera línea tiene todos los valores; si el nombre es largo
-   * las líneas de continuación solo muestran el texto sobrante.
+   * Fila de producto. Montos solo numericos en celdas ("999.99"),
+   * sin "Bs." para no desbordar. Wrap automatico del nombre.
    */
   private tableRow(
     nombre: string,
@@ -141,19 +129,18 @@ export class PrinterService {
     total: number,
   ): string[] {
     const qtyStr  = String(cantidad).padStart(this.COL_QTY);
-    const unitStr = this.fmt(precioUnit).padStart(this.COL_UNIT);
-    const totStr  = this.fmt(total).padStart(this.COL_TOTAL);
-    const right   = ` ${qtyStr} ${unitStr}${totStr}`;
-    // right.length = 1 + 4 + 1 + 8 + 8 = 22  →  nameWidth = 48 - 22 = 26 ✓
+    const unitStr = this.fmtNum(precioUnit).padStart(this.COL_UNIT);
+    const totStr  = this.fmtNum(total).padStart(this.COL_TOTAL);
+    const right   = " " + qtyStr + " " + unitStr + " " + totStr;
+    // right.length = 1+4+1+7+1+7 = 21  →  nameCol = 48-21 = 27 ✓
 
+    const nameClean = this.ascii(nombre);
+    const chunk     = this.COL_NAME;
     const lines: string[] = [];
-    const chunk = this.COL_NAME;
 
-    // Primera línea
-    lines.push(nombre.substring(0, chunk).padEnd(chunk) + right);
+    lines.push(nameClean.substring(0, chunk).padEnd(chunk) + right);
 
-    // Wrap si el nombre supera el ancho de columna
-    let rest = nombre.substring(chunk);
+    let rest = nameClean.substring(chunk);
     while (rest.length > 0) {
       lines.push("  " + rest.substring(0, chunk - 2));
       rest = rest.substring(chunk - 2);
@@ -162,7 +149,7 @@ export class PrinterService {
     return lines;
   }
 
-  // ─────────────────── Helpers genéricos ─────────────────────────
+  // ─────────────────── Helpers ───────────────────────────────────
 
   private center(text: string, width: number): string {
     if (text.length >= width) return text.substring(0, width);
@@ -170,22 +157,26 @@ export class PrinterService {
     return " ".repeat(pad) + text;
   }
 
-  /** Label izquierda, valor derecha */
   private row(label: string, value: string, width: number): string {
     const space = width - label.length - value.length;
     if (space <= 0) return (label + " " + value).substring(0, width);
     return label + " ".repeat(space) + value;
   }
 
-  /** Formatea un monto como "000.00 Bs." */
-  private fmt(monto: number): string {
+  /** Monto con "Bs." para filas de totales: "9999.99 Bs." (11 chars max) */
+  private fmtBs(monto: number): string {
     return monto.toFixed(2) + " Bs.";
   }
 
-  /** "DD/MM/YYYY HH:MM" desde fecha ISO */
+  /** Monto solo numerico para celdas de tabla: "9999.99" (7 chars max) */
+  private fmtNum(monto: number): string {
+    return monto.toFixed(2);
+  }
+
+  /** DD/MM/YYYY HH:MM */
   private formatFecha(isoDate: string): string {
     try {
-      const d = new Date(isoDate);
+      const d  = new Date(isoDate);
       const dd = String(d.getDate()).padStart(2, "0");
       const mm = String(d.getMonth() + 1).padStart(2, "0");
       const hh = String(d.getHours()).padStart(2, "0");
@@ -197,8 +188,30 @@ export class PrinterService {
   }
 
   /**
-   * btoa() seguro para UTF-8 (tildes, ñ, etc.).
-   * unescape(encodeURIComponent()) re-codifica a Latin-1 antes de btoa.
+   * Convierte caracteres no-ASCII a equivalentes seguros para CP437.
+   * Imprescindible para impresoras termicas que no entienden UTF-8:
+   *   n~ -> n,  tildes -> vocal sin tilde,  signos invertidos -> equivalente.
+   */
+  private ascii(text: string): string {
+    return text
+      .replace(/[áàäâã]/gi, (c) => (/[A-Z]/.test(c) ? "A" : "a"))
+      .replace(/[éèëê]/gi,  (c) => (/[A-Z]/.test(c) ? "E" : "e"))
+      .replace(/[íìïî]/gi,  (c) => (/[A-Z]/.test(c) ? "I" : "i"))
+      .replace(/[óòöôõ]/gi, (c) => (/[A-Z]/.test(c) ? "O" : "o"))
+      .replace(/[úùüû]/gi,  (c) => (/[A-Z]/.test(c) ? "U" : "u"))
+      .replace(/[ñ]/g, "n")
+      .replace(/[Ñ]/g, "N")
+      .replace(/[¡]/g, "!")
+      .replace(/[¿]/g, "?")
+      .replace(/[°]/g, "#")
+      .replace(/[«»""'']/g, '"')
+      .replace(/[–—]/g, "-");
+  }
+
+  /**
+   * btoa seguro para strings con caracteres fuera de Latin-1.
+   * El ticket ya viene sanitizado por ascii() asi que esto es solo
+   * un segundo nivel de seguridad.
    */
   private toBase64UTF8(text: string): string {
     return btoa(unescape(encodeURIComponent(text)));

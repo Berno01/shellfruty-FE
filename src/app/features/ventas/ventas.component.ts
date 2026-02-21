@@ -200,6 +200,11 @@ import {
               <thead>
                 <tr class="border-b border-slate-200 bg-slate-100">
                   <th
+                    class="py-5 px-4 text-sm font-bold uppercase tracking-wider text-black whitespace-nowrap w-16 text-center"
+                  >
+                    #
+                  </th>
+                  <th
                     class="py-5 px-6 text-sm font-bold uppercase tracking-wider text-black whitespace-nowrap"
                   >
                     Estado
@@ -244,7 +249,7 @@ import {
               <tbody class="divide-y divide-slate-200">
                 <!-- Loading State -->
                 <tr *ngIf="isLoading()">
-                  <td colspan="8" class="py-12 text-center">
+                  <td colspan="9" class="py-12 text-center">
                     <div class="flex flex-col items-center gap-3">
                       <div
                         class="h-12 w-12 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin"
@@ -263,6 +268,11 @@ import {
                     class="hover:bg-pink-50/50 transition-colors group"
                     [class.opacity-60]="venta.estado === 'CANCELADA'"
                   >
+                    <!-- ID Venta -->
+                    <td class="py-4 px-4 text-center">
+                      <span class="inline-block px-2 py-0.5 bg-slate-100 text-slate-500 text-xs font-black rounded-md">#{{ venta.id_venta }}</span>
+                    </td>
+
                     <!-- Estado -->
                     <td class="py-4 px-6">
                       <span
@@ -560,6 +570,7 @@ import {
               <!-- Card Top: Date & Status -->
               <div class="flex justify-between items-start mb-4">
                 <div class="flex flex-col">
+                  <span class="text-xs font-black text-[#eaa6b6] mb-1">#{{ venta.id_venta }}</span>
                   <span
                     class="text-sm font-bold text-slate-800 flex items-center gap-1"
                   >
