@@ -668,20 +668,45 @@ export class NuevaVentaComponent implements OnInit {
   filteredProducts = computed(() => {
     const categoryId = this.selectedCategory();
     const allProducts = this.products();
+    const cats = this.categorias();
+
+    // Resuelve el nombre de categoría (minúsculas) a partir del id
+    const catName = (id: number | undefined): string => {
+      if (!id) return '';
+      return (
+        cats.find((c) => c.id_categoria_menu === id)?.nombre_categoria_menu ?? ''
+      ).toLowerCase();
+    };
+
+    // Orden de prioridad: vasos → crepes → brownies → resto
+    const PRIORITY = ['vaso', 'crepe', 'brownie'];
+
+    const priorityOf = (id: number | undefined): number => {
+      const name = catName(id);
+      const idx = PRIORITY.findIndex((p) => name.includes(p));
+      return idx === -1 ? PRIORITY.length : idx;
+    };
+
+    // Ordena: por grupo de prioridad primero; dentro de cada grupo prioritario,
+    // por precio ascendente. El resto mantiene el orden original.
+    const sortProducts = (list: typeof allProducts) =>
+      [...list].sort((a, b) => {
+        const pa = priorityOf(a.id_categoria_menu);
+        const pb = priorityOf(b.id_categoria_menu);
+        if (pa !== pb) return pa - pb;
+        if (pa < PRIORITY.length) return a.precio_menu - b.precio_menu;
+        return 0;
+      });
 
     if (categoryId === null) {
-      return allProducts;
+      return sortProducts(allProducts);
     }
 
+    // Con filtro de categoría activo: solo precio ascendente dentro de esa categoría
     const filtered = allProducts.filter(
       (p) => p.id_categoria_menu === categoryId,
     );
-    console.log("Filtrado:", {
-      categoryId,
-      totalProducts: allProducts.length,
-      filteredCount: filtered.length,
-    });
-    return filtered;
+    return [...filtered].sort((a, b) => a.precio_menu - b.precio_menu);
   });
 
   cartTotal = computed(() => {
@@ -1023,7 +1048,10 @@ export class NuevaVentaComponent implements OnInit {
           console.log(`Venta ${action} exitosamente:`, response.data);
           this.triggerNotification(`Venta ${action} exitosamente`);
           // Imprimir ticket automáticamente en RawBT (tablet Android con impresora USB OTG)
-          this.printerService.printReceipt(response.data, this.nombreSucursal());
+          this.printerService.printReceipt(
+            response.data,
+            this.nombreSucursal(),
+          );
           // Redirigir a la lista de ventas tras breve pausa
           setTimeout(() => {
             this.router.navigate(["/ventas"]);
