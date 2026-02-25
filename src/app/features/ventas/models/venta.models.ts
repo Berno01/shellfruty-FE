@@ -91,3 +91,27 @@ export interface CreateVentaPayload {
   estado: string; // "ENTREGADO" o "PENDIENTE"
   detalles: CreateVentaDetalle[];
 }
+// ── Abastecimiento ────────────────────────────────────────────────
+
+export interface AbastecimientoDetalleItem {
+  id_detalle_abastecimiento: number;
+  id_abastecimiento: number;
+  id_menu: number;
+  nombre_menu: string;
+  cantidad: number;
+}
+
+export interface Abastecimiento {
+  id_abastecimiento: number;
+  fecha: string;
+  id_sucursal: number;
+  estado: boolean;
+  detalles: AbastecimientoDetalleItem[];
+}
+
+export interface CreateAbastecimientoPayload {
+  fecha: string;        // YYYY-MM-DD
+  id_sucursal: number;
+  id_usuario: number;
+  detalles: { id_menu: number; cantidad: number }[];
+}

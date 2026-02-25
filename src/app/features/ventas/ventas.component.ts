@@ -3,6 +3,7 @@ import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { Router, RouterLink } from "@angular/router";
 import { VentaService } from "./services/venta.service";
+import { AbastecimientoService } from "./services/abastecimiento.service";
 import { AuthService } from "../../core/services/auth.service";
 import {
   SucursalService,
@@ -13,6 +14,8 @@ import {
   VentaEstado,
   VentaDetalle,
   DetalleVentaItem,
+  MenuVenta,
+  Abastecimiento,
 } from "./models/venta.models";
 import {
   getTodayBolivia,
@@ -168,6 +171,28 @@ import {
               <span *ngIf="isRangeMode()">Rango</span>
             </button>
 
+            <!-- Abastecimiento Vasos Button -->
+            <button
+              (click)="openAbastecimientoModal()"
+              [disabled]="currentSucursalId() === 0"
+              class="bg-white border border-slate-300 hover:border-[#eaa6b6] hover:bg-pink-50 text-slate-700 font-bold py-3 px-4 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              [title]="currentSucursalId() === 0 ? 'Selecciona una sucursal primero' : 'Registrar abastecimiento de productos'"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[#eaa6b6]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <!-- Cuerpo del vaso (tazón) -->
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 4h12l-2 15H8L6 4z"/>
+                <!-- Tapa / línea superior -->
+                <line x1="5" y1="4" x2="19" y2="4" stroke-linecap="round" stroke-width="1.5"/>
+                <!-- Pitillo / straw -->
+                <line x1="13.5" y1="1" x2="13.5" y2="9" stroke-linecap="round" stroke-width="1.5"/>
+                <!-- Burbujas (bubble tea) -->
+                <circle cx="9.5"  cy="12" r="1" fill="currentColor" stroke="none"/>
+                <circle cx="12"   cy="14.5" r="1" fill="currentColor" stroke="none"/>
+                <circle cx="14.5" cy="12" r="1" fill="currentColor" stroke="none"/>
+              </svg>
+              Vasos
+            </button>
+
             <!-- Nueva Venta Button -->
             <button
               routerLink="/ventas/nueva"
@@ -270,7 +295,10 @@ import {
                   >
                     <!-- ID Venta -->
                     <td class="py-4 px-4 text-center">
-                      <span class="inline-block px-2 py-0.5 bg-slate-100 text-slate-500 text-xs font-black rounded-md">#{{ venta.id_venta }}</span>
+                      <span
+                        class="inline-block px-2 py-0.5 bg-slate-100 text-slate-500 text-xs font-black rounded-md"
+                        >#{{ venta.id_venta }}</span
+                      >
                     </td>
 
                     <!-- Estado -->
@@ -570,7 +598,9 @@ import {
               <!-- Card Top: Date & Status -->
               <div class="flex justify-between items-start mb-4">
                 <div class="flex flex-col">
-                  <span class="text-xs font-black text-[#eaa6b6] mb-1">#{{ venta.id_venta }}</span>
+                  <span class="text-xs font-black text-[#eaa6b6] mb-1"
+                    >#{{ venta.id_venta }}</span
+                  >
                   <span
                     class="text-sm font-bold text-slate-800 flex items-center gap-1"
                   >
@@ -906,6 +936,160 @@ import {
       </div>
     </div>
 
+    <!-- Modal Abastecimiento Vasos -->
+    <div
+      *ngIf="showAbastecimientoModal()"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      (click)="closeAbastecimientoModal()"
+    >
+      <div
+        (click)="$event.stopPropagation()"
+        class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col"
+      >
+        <!-- Header -->
+        <div class="sticky top-0 bg-white border-b border-slate-200 p-5 flex items-center justify-between rounded-t-2xl shrink-0">
+          <div>
+            <h2 class="text-xl font-extrabold text-black">Abastecimiento de Productos</h2>
+            <p class="text-sm text-slate-500 font-medium">
+              {{ fechaInicio() }} &nbsp;·&nbsp; {{ getNombreSucursal(currentSucursalId()) }}
+            </p>
+          </div>
+          <button
+            (click)="closeAbastecimientoModal()"
+            class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+          >
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="overflow-y-auto flex-1 p-5 space-y-6">
+
+          <!-- Registros del día -->
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Registros del día</h3>
+            <div *ngIf="isLoadingAbastecimiento()" class="flex justify-center py-6">
+              <div class="h-8 w-8 border-4 border-pink-200 border-t-[#eaa6b6] rounded-full animate-spin"></div>
+            </div>
+            <p
+              *ngIf="!isLoadingAbastecimiento() && abastecimientosHoy().length === 0"
+              class="text-slate-400 text-sm italic text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200"
+            >
+              Sin registros para este día.
+            </p>
+            <div
+              *ngIf="!isLoadingAbastecimiento() && abastecimientosHoy().length > 0"
+              class="space-y-2"
+            >
+              <div
+                *ngFor="let ab of abastecimientosHoy()"
+                class="bg-slate-50 rounded-xl p-3 border border-slate-100"
+              >
+                <p class="text-xs font-bold text-slate-400 mb-2">
+                  Registro #{{ ab.id_abastecimiento }}&nbsp;·&nbsp;{{ formatAbFecha(ab.fecha) }}
+                </p>
+                <div class="flex flex-wrap gap-2">
+                  <span
+                    *ngFor="let d of ab.detalles"
+                    class="inline-flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-700"
+                  >
+                    <span class="text-[#eaa6b6]">&times;{{ d.cantidad }}</span>
+                    {{ d.nombre_menu }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Nuevo registro -->
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Nuevo Registro</h3>
+            <p
+              *ngIf="vasosMenuItems().length === 0"
+              class="text-slate-400 text-sm italic text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200"
+            >
+              No se encontraron productos en el menú.
+            </p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div
+                *ngFor="let item of vasosMenuItems()"
+                class="rounded-xl p-3 border flex flex-col gap-2 transition-colors"
+                [class.border-slate-200]="(vasosQuantities()[item.id_menu] || 0) === 0"
+                [class.bg-slate-50]="(vasosQuantities()[item.id_menu] || 0) === 0"
+                [class.border-[#eaa6b6]]="(vasosQuantities()[item.id_menu] || 0) > 0"
+                [class.bg-pink-50]="(vasosQuantities()[item.id_menu] || 0) > 0"
+              >
+                <!-- Imagen -->
+                <div class="w-full h-20 rounded-lg bg-white border border-slate-100 overflow-hidden flex items-center justify-center">
+                  <img
+                    *ngIf="item.url_foto"
+                    [src]="item.url_foto"
+                    [alt]="item.nombre_menu"
+                    class="w-full h-full object-cover"
+                  />
+                  <svg *ngIf="!item.url_foto" class="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M3 7h2l2-3h10l2 3h2a1 1 0 011 1v11a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1zm9 3a4 4 0 100 8 4 4 0 000-8z" />
+                  </svg>
+                </div>
+                <!-- Id + Nombre -->
+                <div>
+                  <span class="text-[10px] font-bold text-slate-400">#{{ item.id_menu }}</span>
+                  <p class="text-xs font-bold text-slate-800 line-clamp-2 leading-tight">{{ item.nombre_menu }}</p>
+                </div>
+                <!-- Cantidad -->
+                <div class="flex items-center bg-white rounded-lg border border-slate-200 overflow-hidden">
+                  <button
+                    (click)="decrementAbQty(item.id_menu)"
+                    class="px-2.5 py-1.5 text-slate-500 hover:bg-slate-100 font-bold text-base leading-none transition-colors"
+                  >−</button>
+                  <input
+                    type="number"
+                    [value]="vasosQuantities()[item.id_menu] || 0"
+                    (change)="setAbQty(item.id_menu, $event)"
+                    min="0"
+                    class="flex-1 text-center text-sm font-black text-slate-900 py-1.5 outline-none w-0 bg-transparent"
+                  />
+                  <button
+                    (click)="incrementAbQty(item.id_menu)"
+                    class="px-2.5 py-1.5 text-slate-500 hover:bg-[#eaa6b6] hover:text-black font-bold text-base leading-none transition-colors"
+                  >+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="shrink-0 bg-white border-t border-slate-200 p-5 flex items-center justify-between rounded-b-2xl">
+          <span class="text-sm font-bold text-slate-500">
+            {{ abTotalItems() }} producto(s) seleccionado(s)
+          </span>
+          <div class="flex gap-3">
+            <button
+              (click)="closeAbastecimientoModal()"
+              class="px-5 py-2.5 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition-colors text-sm"
+            >
+              Cancelar
+            </button>
+            <button
+              (click)="saveAbastecimiento()"
+              [disabled]="abTotalItems() === 0 || isSavingAbastecimiento()"
+              class="px-5 py-2.5 rounded-xl bg-[#eaa6b6] text-black font-black hover:bg-[#d68a9a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center gap-2"
+            >
+              <span
+                *ngIf="isSavingAbastecimiento()"
+                class="h-4 w-4 border-2 border-black border-t-transparent rounded-full animate-spin"
+              ></span>
+              {{ isSavingAbastecimiento() ? 'Guardando...' : 'Guardar Registro' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal Detalle de Venta -->
     <div
       *ngIf="showDetalleModal()"
@@ -1158,6 +1342,7 @@ import {
 })
 export class VentasComponent implements OnInit {
   private ventaService = inject(VentaService);
+  private abastecimientoService = inject(AbastecimientoService);
   private authService = inject(AuthService);
   private sucursalService = inject(SucursalService);
   private router = inject(Router);
@@ -1171,6 +1356,22 @@ export class VentasComponent implements OnInit {
   showDetalleModal = signal<boolean>(false);
   detalleVenta = signal<VentaDetalle | null>(null);
   isLoading = signal<boolean>(false); // Nuevo signal para loading state
+
+  // ── Abastecimiento signals ────────────────────────────────────
+  showAbastecimientoModal = signal<boolean>(false);
+  vasosMenuItems = signal<MenuVenta[]>([]);
+  vasosQuantities = signal<Record<number, number>>({});
+  abastecimientosHoy = signal<Abastecimiento[]>([]);
+  isLoadingAbastecimiento = signal<boolean>(false);
+  isSavingAbastecimiento = signal<boolean>(false);
+
+  abTotalItems = computed(() =>
+    Object.values(this.vasosQuantities()).filter((v) => v > 0).length,
+  );
+
+  currentSucursalId = computed(() => {
+    return this.selectedSucursal() ?? this.userSucursal ?? 0;
+  });
 
   userSucursal: number | null = null;
   userRol: number | null = null;
@@ -1401,5 +1602,113 @@ export class VentasComponent implements OnInit {
   private sanitizeImageUrl(url: string | null | undefined): string | null {
     if (!url) return null;
     return url.replace(/\\/g, "");
+  }
+
+  // ── Abastecimiento methods ────────────────────────────────────
+
+  openAbastecimientoModal() {
+    // Cargar todos los productos del menú desde el cache
+    const allMenus = this.ventaService.getCachedMenus();
+    const allCats = this.ventaService.getCachedCategories();
+
+    // Prioridad: vasos → crepes → brownies → resto
+    const PRIORITY = ["vaso", "crepe", "brownie"];
+    const catName = (id: number | undefined) =>
+      (allCats.find((c) => c.id_categoria_menu === id)?.nombre_categoria_menu ?? "").toLowerCase();
+    const priorityOf = (id: number | undefined) => {
+      const idx = PRIORITY.findIndex((p) => catName(id).includes(p));
+      return idx === -1 ? PRIORITY.length : idx;
+    };
+
+    const sorted = [...allMenus].sort((a, b) => {
+      const pa = priorityOf(a.id_categoria_menu);
+      const pb = priorityOf(b.id_categoria_menu);
+      if (pa !== pb) return pa - pb;
+      if (pa < PRIORITY.length) return a.precio_menu - b.precio_menu;
+      return 0;
+    });
+
+    this.vasosMenuItems.set(sorted);
+    this.vasosQuantities.set({});
+    this.showAbastecimientoModal.set(true);
+    this.loadAbastecimientosHoy();
+  }
+
+  closeAbastecimientoModal() {
+    this.showAbastecimientoModal.set(false);
+  }
+
+  loadAbastecimientosHoy() {
+    const sucId = this.currentSucursalId();
+    this.isLoadingAbastecimiento.set(true);
+    this.abastecimientoService
+      .getAbastecimientos(this.fechaInicio(), sucId || undefined)
+      .subscribe({
+        next: (res) => {
+          if (res.success) this.abastecimientosHoy.set(res.data);
+          this.isLoadingAbastecimiento.set(false);
+        },
+        error: () => this.isLoadingAbastecimiento.set(false),
+      });
+  }
+
+  incrementAbQty(idMenu: number) {
+    this.vasosQuantities.update((q) => ({ ...q, [idMenu]: (q[idMenu] || 0) + 1 }));
+  }
+
+  decrementAbQty(idMenu: number) {
+    this.vasosQuantities.update((q) => ({
+      ...q,
+      [idMenu]: Math.max(0, (q[idMenu] || 0) - 1),
+    }));
+  }
+
+  setAbQty(idMenu: number, event: Event) {
+    const val = Math.max(
+      0,
+      parseInt((event.target as HTMLInputElement).value) || 0,
+    );
+    this.vasosQuantities.update((q) => ({ ...q, [idMenu]: val }));
+  }
+
+  saveAbastecimiento() {
+    const qs = this.vasosQuantities();
+    const detalles = Object.entries(qs)
+      .filter(([, cant]) => cant > 0)
+      .map(([idMenu, cant]) => ({ id_menu: Number(idMenu), cantidad: cant }));
+    if (detalles.length === 0) return;
+
+    const user = this.authService.currentUser;
+    const sucId = this.currentSucursalId();
+    this.isSavingAbastecimiento.set(true);
+
+    this.abastecimientoService
+      .createAbastecimiento({
+        fecha: this.fechaInicio(),
+        id_sucursal: sucId,
+        id_usuario: user?.id_usuario || 1,
+        detalles,
+      })
+      .subscribe({
+        next: (res) => {
+          this.isSavingAbastecimiento.set(false);
+          if (res.success) {
+            this.vasosQuantities.set({});
+            this.loadAbastecimientosHoy(); // Refrescar lista del día
+          }
+        },
+        error: () => this.isSavingAbastecimiento.set(false),
+      });
+  }
+
+  formatAbFecha(fecha: string): string {
+    try {
+      return new Date(fecha).toLocaleTimeString("es-BO", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return fecha;
+    }
   }
 }
