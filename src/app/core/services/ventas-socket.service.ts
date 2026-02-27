@@ -34,10 +34,10 @@ export class VentasSocketService implements OnDestroy {
     this.socket.on("connect", () =>
       console.log("[Socket] Conectado al servidor de ventas"),
     );
-    this.socket.on("disconnect", (reason) =>
+    this.socket.on("disconnect", (reason: string) =>
       console.warn("[Socket] Desconectado:", reason),
     );
-    this.socket.on("connect_error", (err) =>
+    this.socket.on("connect_error", (err: Error) =>
       console.error("[Socket] Error de conexión:", err.message),
     );
 
