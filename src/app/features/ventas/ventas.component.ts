@@ -1,4 +1,7 @@
-import { Component, OnInit, inject, signal, computed } from "@angular/core";
+import { Component, OnInit, OnDestroy, inject, signal, computed } from "@angular/core";
+import { Subject } from "rxjs";
+import { takeUntil } from "rxjs/operators";
+import { VentasSocketService } from "../../core/services/ventas-socket.service";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { Router, RouterLink } from "@angular/router";
@@ -176,19 +179,66 @@ import {
               (click)="openAbastecimientoModal()"
               [disabled]="currentSucursalId() === 0"
               class="bg-white border border-slate-300 hover:border-[#eaa6b6] hover:bg-pink-50 text-slate-700 font-bold py-3 px-4 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
-              [title]="currentSucursalId() === 0 ? 'Selecciona una sucursal primero' : 'Registrar abastecimiento de productos'"
+              [title]="
+                currentSucursalId() === 0
+                  ? 'Selecciona una sucursal primero'
+                  : 'Registrar abastecimiento de productos'
+              "
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[#eaa6b6]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5 text-[#eaa6b6]"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+              >
                 <!-- Cuerpo del vaso (tazón) -->
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 4h12l-2 15H8L6 4z"/>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                  d="M6 4h12l-2 15H8L6 4z"
+                />
                 <!-- Tapa / línea superior -->
-                <line x1="5" y1="4" x2="19" y2="4" stroke-linecap="round" stroke-width="1.5"/>
+                <line
+                  x1="5"
+                  y1="4"
+                  x2="19"
+                  y2="4"
+                  stroke-linecap="round"
+                  stroke-width="1.5"
+                />
                 <!-- Pitillo / straw -->
-                <line x1="13.5" y1="1" x2="13.5" y2="9" stroke-linecap="round" stroke-width="1.5"/>
+                <line
+                  x1="13.5"
+                  y1="1"
+                  x2="13.5"
+                  y2="9"
+                  stroke-linecap="round"
+                  stroke-width="1.5"
+                />
                 <!-- Burbujas (bubble tea) -->
-                <circle cx="9.5"  cy="12" r="1" fill="currentColor" stroke="none"/>
-                <circle cx="12"   cy="14.5" r="1" fill="currentColor" stroke="none"/>
-                <circle cx="14.5" cy="12" r="1" fill="currentColor" stroke="none"/>
+                <circle
+                  cx="9.5"
+                  cy="12"
+                  r="1"
+                  fill="currentColor"
+                  stroke="none"
+                />
+                <circle
+                  cx="12"
+                  cy="14.5"
+                  r="1"
+                  fill="currentColor"
+                  stroke="none"
+                />
+                <circle
+                  cx="14.5"
+                  cy="12"
+                  r="1"
+                  fill="currentColor"
+                  stroke="none"
+                />
               </svg>
               Vasos
             </button>
@@ -292,6 +342,7 @@ import {
                     *ngFor="let venta of ventas()"
                     class="hover:bg-pink-50/50 transition-colors group"
                     [class.opacity-60]="venta.estado === 'CANCELADA'"
+                    [class.venta-bot]="ventasBotHighlight().has(venta.id_venta)"
                   >
                     <!-- ID Venta -->
                     <td class="py-4 px-4 text-center">
@@ -594,6 +645,7 @@ import {
               class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-pink-200 transition-all duration-300 p-5 flex flex-col justify-between group relative overflow-hidden"
               [class.opacity-75]="venta.estado === 'CANCELADA'"
               [class.bg-slate-50]="venta.estado === 'CANCELADA'"
+              [class.venta-bot]="ventasBotHighlight().has(venta.id_venta)"
             >
               <!-- Card Top: Date & Status -->
               <div class="flex justify-between items-start mb-4">
@@ -947,39 +999,66 @@ import {
         class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] flex flex-col"
       >
         <!-- Header -->
-        <div class="sticky top-0 bg-white border-b border-slate-200 p-5 flex items-center justify-between rounded-t-2xl shrink-0">
+        <div
+          class="sticky top-0 bg-white border-b border-slate-200 p-5 flex items-center justify-between rounded-t-2xl shrink-0"
+        >
           <div>
-            <h2 class="text-xl font-extrabold text-black">Abastecimiento de Productos</h2>
+            <h2 class="text-xl font-extrabold text-black">
+              Abastecimiento de Productos
+            </h2>
             <p class="text-sm text-slate-500 font-medium">
-              {{ fechaInicio() }} &nbsp;·&nbsp; {{ getNombreSucursal(currentSucursalId()) }}
+              {{ fechaInicio() }} &nbsp;·&nbsp;
+              {{ getNombreSucursal(currentSucursalId()) }}
             </p>
           </div>
           <button
             (click)="closeAbastecimientoModal()"
             class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
           >
-            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              class="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
 
         <div class="overflow-y-auto flex-1 p-5 space-y-6">
-
           <!-- Registros del día -->
           <div>
-            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Registros del día</h3>
-            <div *ngIf="isLoadingAbastecimiento()" class="flex justify-center py-6">
-              <div class="h-8 w-8 border-4 border-pink-200 border-t-[#eaa6b6] rounded-full animate-spin"></div>
+            <h3
+              class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3"
+            >
+              Registros del día
+            </h3>
+            <div
+              *ngIf="isLoadingAbastecimiento()"
+              class="flex justify-center py-6"
+            >
+              <div
+                class="h-8 w-8 border-4 border-pink-200 border-t-[#eaa6b6] rounded-full animate-spin"
+              ></div>
             </div>
             <p
-              *ngIf="!isLoadingAbastecimiento() && abastecimientosHoy().length === 0"
+              *ngIf="
+                !isLoadingAbastecimiento() && abastecimientosHoy().length === 0
+              "
               class="text-slate-400 text-sm italic text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200"
             >
               Sin registros para este día.
             </p>
             <div
-              *ngIf="!isLoadingAbastecimiento() && abastecimientosHoy().length > 0"
+              *ngIf="
+                !isLoadingAbastecimiento() && abastecimientosHoy().length > 0
+              "
               class="space-y-2"
             >
               <div
@@ -987,7 +1066,9 @@ import {
                 class="bg-slate-50 rounded-xl p-3 border border-slate-100"
               >
                 <p class="text-xs font-bold text-slate-400 mb-2">
-                  Registro #{{ ab.id_abastecimiento }}&nbsp;·&nbsp;{{ formatAbFecha(ab.fecha) }}
+                  Registro #{{ ab.id_abastecimiento }}&nbsp;·&nbsp;{{
+                    formatAbFecha(ab.fecha)
+                  }}
                 </p>
                 <div class="flex flex-wrap gap-2">
                   <span
@@ -1004,7 +1085,11 @@ import {
 
           <!-- Nuevo registro -->
           <div>
-            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Nuevo Registro</h3>
+            <h3
+              class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3"
+            >
+              Nuevo Registro
+            </h3>
             <p
               *ngIf="vasosMenuItems().length === 0"
               class="text-slate-400 text-sm italic text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200"
@@ -1015,35 +1100,63 @@ import {
               <div
                 *ngFor="let item of vasosMenuItems()"
                 class="rounded-xl p-3 border flex flex-col gap-2 transition-colors"
-                [class.border-slate-200]="(vasosQuantities()[item.id_menu] || 0) === 0"
-                [class.bg-slate-50]="(vasosQuantities()[item.id_menu] || 0) === 0"
-                [class.border-[#eaa6b6]]="(vasosQuantities()[item.id_menu] || 0) > 0"
+                [class.border-slate-200]="
+                  (vasosQuantities()[item.id_menu] || 0) === 0
+                "
+                [class.bg-slate-50]="
+                  (vasosQuantities()[item.id_menu] || 0) === 0
+                "
+                [class.border-[#eaa6b6]]="
+                  (vasosQuantities()[item.id_menu] || 0) > 0
+                "
                 [class.bg-pink-50]="(vasosQuantities()[item.id_menu] || 0) > 0"
               >
                 <!-- Imagen -->
-                <div class="w-full h-20 rounded-lg bg-white border border-slate-100 overflow-hidden flex items-center justify-center">
+                <div
+                  class="w-full h-20 rounded-lg bg-white border border-slate-100 overflow-hidden flex items-center justify-center"
+                >
                   <img
                     *ngIf="item.url_foto"
                     [src]="item.url_foto"
                     [alt]="item.nombre_menu"
                     class="w-full h-full object-cover"
                   />
-                  <svg *ngIf="!item.url_foto" class="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M3 7h2l2-3h10l2 3h2a1 1 0 011 1v11a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1zm9 3a4 4 0 100 8 4 4 0 000-8z" />
+                  <svg
+                    *ngIf="!item.url_foto"
+                    class="h-8 w-8 text-slate-300"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M3 7h2l2-3h10l2 3h2a1 1 0 011 1v11a1 1 0 01-1 1H3a1 1 0 01-1-1V8a1 1 0 011-1zm9 3a4 4 0 100 8 4 4 0 000-8z"
+                    />
                   </svg>
                 </div>
                 <!-- Id + Nombre -->
                 <div>
-                  <span class="text-[10px] font-bold text-slate-400">#{{ item.id_menu }}</span>
-                  <p class="text-xs font-bold text-slate-800 line-clamp-2 leading-tight">{{ item.nombre_menu }}</p>
+                  <span class="text-[10px] font-bold text-slate-400"
+                    >#{{ item.id_menu }}</span
+                  >
+                  <p
+                    class="text-xs font-bold text-slate-800 line-clamp-2 leading-tight"
+                  >
+                    {{ item.nombre_menu }}
+                  </p>
                 </div>
                 <!-- Cantidad -->
-                <div class="flex items-center bg-white rounded-lg border border-slate-200 overflow-hidden">
+                <div
+                  class="flex items-center bg-white rounded-lg border border-slate-200 overflow-hidden"
+                >
                   <button
                     (click)="decrementAbQty(item.id_menu)"
                     class="px-2.5 py-1.5 text-slate-500 hover:bg-slate-100 font-bold text-base leading-none transition-colors"
-                  >−</button>
+                  >
+                    −
+                  </button>
                   <input
                     type="number"
                     [value]="vasosQuantities()[item.id_menu] || 0"
@@ -1054,16 +1167,19 @@ import {
                   <button
                     (click)="incrementAbQty(item.id_menu)"
                     class="px-2.5 py-1.5 text-slate-500 hover:bg-[#eaa6b6] hover:text-black font-bold text-base leading-none transition-colors"
-                  >+</button>
+                  >
+                    +
+                  </button>
                 </div>
               </div>
             </div>
           </div>
-
         </div>
 
         <!-- Footer -->
-        <div class="shrink-0 bg-white border-t border-slate-200 p-5 flex items-center justify-between rounded-b-2xl">
+        <div
+          class="shrink-0 bg-white border-t border-slate-200 p-5 flex items-center justify-between rounded-b-2xl"
+        >
           <span class="text-sm font-bold text-slate-500">
             {{ abTotalItems() }} producto(s) seleccionado(s)
           </span>
@@ -1083,7 +1199,9 @@ import {
                 *ngIf="isSavingAbastecimiento()"
                 class="h-4 w-4 border-2 border-black border-t-transparent rounded-full animate-spin"
               ></span>
-              {{ isSavingAbastecimiento() ? 'Guardando...' : 'Guardar Registro' }}
+              {{
+                isSavingAbastecimiento() ? "Guardando..." : "Guardar Registro"
+              }}
             </button>
           </div>
         </div>
@@ -1337,15 +1455,24 @@ import {
       :host {
         font-family: "Work Sans", sans-serif;
       }
+
+      .venta-bot {
+        animation: bot-highlight 1s ease-in-out infinite alternate;
+      }
+      @keyframes bot-highlight {
+        from { background-color: #dcfce7; }
+        to   { background-color: #bbf7d0; }
+      }
     `,
   ],
 })
-export class VentasComponent implements OnInit {
+export class VentasComponent implements OnInit, OnDestroy {
   private ventaService = inject(VentaService);
   private abastecimientoService = inject(AbastecimientoService);
   private authService = inject(AuthService);
   private sucursalService = inject(SucursalService);
   private router = inject(Router);
+  private socketService = inject(VentasSocketService);
 
   ventas = signal<Venta[]>([]);
   sucursales = signal<Sucursal[]>([]);
@@ -1365,13 +1492,16 @@ export class VentasComponent implements OnInit {
   isLoadingAbastecimiento = signal<boolean>(false);
   isSavingAbastecimiento = signal<boolean>(false);
 
-  abTotalItems = computed(() =>
-    Object.values(this.vasosQuantities()).filter((v) => v > 0).length,
+  abTotalItems = computed(
+    () => Object.values(this.vasosQuantities()).filter((v) => v > 0).length,
   );
 
   currentSucursalId = computed(() => {
     return this.selectedSucursal() ?? this.userSucursal ?? 0;
   });
+
+  ventasBotHighlight = signal<Set<number>>(new Set());
+  private destroy$ = new Subject<void>();
 
   userSucursal: number | null = null;
   userRol: number | null = null;
@@ -1391,6 +1521,37 @@ export class VentasComponent implements OnInit {
     this.loadSucursales();
     this.ventaService.loadIngredientesCache(); // Cargar ingredientes al inicio
     this.loadVentas();
+
+    // Socket: escuchar nueva_venta del bot (WhatsApp)
+    this.socketService.nuevaVenta$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((payload) => {
+        if (payload.origen === 'bot') {
+          // Construir un objeto Venta a partir del payload plano del servidor
+          const nuevaVenta: Venta = {
+            id_venta:       payload.id_venta,
+            fecha:          payload.fecha,
+            id_sucursal:    payload.id_sucursal,
+            total:          payload.total,
+            monto_efectivo: 0,
+            monto_qr:       0,
+            estado:         'COMPLETADA',
+            username:       'Bot WhatsApp',
+          };
+          this.ventas.update(current => [nuevaVenta, ...current]);
+          new Audio('assets/sounds/alert.wav').play().catch(() => {});
+          const id = nuevaVenta.id_venta;
+          this.ventasBotHighlight.update(s => new Set([...s, id]));
+          setTimeout(() => {
+            this.ventasBotHighlight.update(s => { const n = new Set(s); n.delete(id); return n; });
+          }, 5000);
+        }
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private loadSucursales() {
@@ -1614,7 +1775,10 @@ export class VentasComponent implements OnInit {
     // Prioridad: vasos → crepes → brownies → resto
     const PRIORITY = ["vaso", "crepe", "brownie"];
     const catName = (id: number | undefined) =>
-      (allCats.find((c) => c.id_categoria_menu === id)?.nombre_categoria_menu ?? "").toLowerCase();
+      (
+        allCats.find((c) => c.id_categoria_menu === id)
+          ?.nombre_categoria_menu ?? ""
+      ).toLowerCase();
     const priorityOf = (id: number | undefined) => {
       const idx = PRIORITY.findIndex((p) => catName(id).includes(p));
       return idx === -1 ? PRIORITY.length : idx;
@@ -1653,7 +1817,10 @@ export class VentasComponent implements OnInit {
   }
 
   incrementAbQty(idMenu: number) {
-    this.vasosQuantities.update((q) => ({ ...q, [idMenu]: (q[idMenu] || 0) + 1 }));
+    this.vasosQuantities.update((q) => ({
+      ...q,
+      [idMenu]: (q[idMenu] || 0) + 1,
+    }));
   }
 
   decrementAbQty(idMenu: number) {
