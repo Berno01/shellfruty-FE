@@ -5,6 +5,7 @@ import { ApiService } from "../../../core/services/api.service";
 import {
   Abastecimiento,
   CreateAbastecimientoPayload,
+  SaldoItem,
   ApiResponse,
 } from "../models/venta.models";
 
@@ -27,6 +28,23 @@ export class AbastecimientoService {
     if (id_sucursal) params = params.set("id_sucursal", id_sucursal.toString());
     return this.apiService.get<ApiResponse<Abastecimiento[]>>(
       this.ENDPOINT,
+      params,
+    );
+  }
+
+  /**
+   * Saldo de abastecimiento: total vendido y saldo restante por menú.
+   * GET /api/v1/abastecimiento/saldo?fecha=YYYY-MM-DD&id_sucursal=N
+   */
+  getSaldo(
+    fecha: string,
+    id_sucursal: number,
+  ): Observable<ApiResponse<SaldoItem[]>> {
+    const params = new HttpParams()
+      .set("fecha", fecha)
+      .set("id_sucursal", id_sucursal.toString());
+    return this.apiService.get<ApiResponse<SaldoItem[]>>(
+      `${this.ENDPOINT}/saldo`,
       params,
     );
   }

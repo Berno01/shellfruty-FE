@@ -110,8 +110,18 @@ export interface Abastecimiento {
 }
 
 export interface CreateAbastecimientoPayload {
-  fecha: string;        // YYYY-MM-DD
+  fecha: string; // YYYY-MM-DD
   id_sucursal: number;
   id_usuario: number;
   detalles: { id_menu: number; cantidad: number }[];
+}
+
+// ── Saldo de Abastecimiento ───────────────────────────────────────
+
+export interface SaldoItem {
+  id_menu: number;
+  nombre_menu: string;
+  abastecido: number;
+  vendido: number;
+  saldo: number;
 }

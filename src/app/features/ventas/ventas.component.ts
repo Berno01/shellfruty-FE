@@ -1,4 +1,11 @@
-import { Component, OnInit, OnDestroy, inject, signal, computed } from "@angular/core";
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  inject,
+  signal,
+  computed,
+} from "@angular/core";
 import { Subject } from "rxjs";
 import { takeUntil } from "rxjs/operators";
 import { VentasSocketService } from "../../core/services/ventas-socket.service";
@@ -19,6 +26,7 @@ import {
   DetalleVentaItem,
   MenuVenta,
   Abastecimiento,
+  SaldoItem,
 } from "./models/venta.models";
 import {
   getTodayBolivia,
@@ -241,6 +249,34 @@ import {
                 />
               </svg>
               Vasos
+            </button>
+
+            <!-- Saldo de Ventas Button -->
+            <button
+              (click)="openSaldoModal()"
+              [disabled]="currentSucursalId() === 0"
+              class="bg-white border border-slate-300 hover:border-[#eaa6b6] hover:bg-pink-50 text-slate-700 font-bold py-3 px-4 rounded-lg shadow-sm flex items-center justify-center gap-2 transition-all active:scale-95 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              [title]="
+                currentSucursalId() === 0
+                  ? 'Selecciona una sucursal primero'
+                  : 'Ver saldo de ventas del d\u00eda'
+              "
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-5 w-5 text-[#eaa6b6]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+              Saldo
             </button>
 
             <!-- Nueva Venta Button -->
@@ -1208,6 +1244,113 @@ import {
       </div>
     </div>
 
+    <!-- Modal Saldo de Ventas -->
+    <div
+      *ngIf="showSaldoModal()"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      (click)="closeSaldoModal()"
+    >
+      <div
+        (click)="$event.stopPropagation()"
+        class="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] flex flex-col"
+      >
+        <!-- Header -->
+        <div
+          class="sticky top-0 bg-white border-b border-slate-200 p-5 flex items-center justify-between rounded-t-2xl shrink-0"
+        >
+          <div>
+            <h2 class="text-xl font-extrabold text-black">Saldo del Día</h2>
+            <p class="text-sm text-slate-500 font-medium">
+              {{ fechaInicio() }} &nbsp;·&nbsp;
+              {{ getNombreSucursal(currentSucursalId()) }}
+            </p>
+          </div>
+          <button
+            (click)="closeSaldoModal()"
+            class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+          >
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div class="overflow-y-auto flex-1 p-5">
+          <!-- Loading -->
+          <div *ngIf="isLoadingSaldo()" class="flex justify-center py-10">
+            <div class="h-8 w-8 border-4 border-pink-200 border-t-[#eaa6b6] rounded-full animate-spin"></div>
+          </div>
+
+          <!-- Empty -->
+          <p
+            *ngIf="!isLoadingSaldo() && saldoItems().length === 0"
+            class="text-slate-400 text-sm italic text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200"
+          >
+            Sin datos de saldo para este día.
+          </p>
+
+          <!-- Table -->
+          <div *ngIf="!isLoadingSaldo() && saldoItems().length > 0" class="space-y-2">
+            <!-- Header row -->
+            <div class="grid grid-cols-3 gap-2 px-3 pb-1">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Producto</span>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 text-center">Vendido</span>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 text-right">Saldo</span>
+            </div>
+            <div
+              *ngFor="let item of saldoItems()"
+              class="grid grid-cols-3 gap-2 items-center bg-slate-50 rounded-xl px-3 py-2.5 border"
+              [class.border-slate-100]="item.saldo > 0"
+              [class.border-pink-200]="item.saldo === 0"
+              [class.bg-pink-50]="item.saldo === 0"
+            >
+              <span class="text-sm font-bold text-slate-800 truncate" [title]="item.nombre_menu">
+                {{ item.nombre_menu }}
+              </span>
+              <span class="text-sm font-black text-slate-700 text-center">
+                {{ item.vendido }}
+              </span>
+              <div class="flex justify-end">
+                <span
+                  class="inline-flex items-center justify-center min-w-[2.25rem] px-2 py-0.5 rounded-lg text-sm font-black"
+                  [class.bg-green-100]="item.saldo > 0"
+                  [class.text-green-700]="item.saldo > 0"
+                  [class.bg-red-100]="item.saldo === 0"
+                  [class.text-red-600]="item.saldo === 0"
+                >
+                  {{ item.saldo }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Totals row -->
+            <div class="grid grid-cols-3 gap-2 items-center bg-white rounded-xl px-3 py-2.5 border border-slate-200 mt-1">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Total</span>
+              <span class="text-sm font-black text-slate-900 text-center">
+                {{ totalVendidoSaldo() }}
+              </span>
+              <div class="flex justify-end">
+                <span class="inline-flex items-center justify-center min-w-[2.25rem] px-2 py-0.5 rounded-lg text-sm font-black bg-slate-100 text-slate-700">
+                  {{ totalSaldoRestante() }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="shrink-0 bg-white border-t border-slate-200 p-4 flex justify-end rounded-b-2xl">
+          <button
+            (click)="closeSaldoModal()"
+            class="px-5 py-2.5 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition-colors text-sm"
+          >
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal Detalle de Venta -->
     <div
       *ngIf="showDetalleModal()"
@@ -1460,8 +1603,12 @@ import {
         animation: bot-highlight 1s ease-in-out infinite alternate;
       }
       @keyframes bot-highlight {
-        from { background-color: #dcfce7; }
-        to   { background-color: #bbf7d0; }
+        from {
+          background-color: #dcfce7;
+        }
+        to {
+          background-color: #bbf7d0;
+        }
       }
     `,
   ],
@@ -1483,6 +1630,18 @@ export class VentasComponent implements OnInit, OnDestroy {
   showDetalleModal = signal<boolean>(false);
   detalleVenta = signal<VentaDetalle | null>(null);
   isLoading = signal<boolean>(false); // Nuevo signal para loading state
+
+  // ── Saldo signals ──────────────────────────────────────────────
+  showSaldoModal = signal<boolean>(false);
+  saldoItems = signal<SaldoItem[]>([]);
+  isLoadingSaldo = signal<boolean>(false);
+
+  totalVendidoSaldo = computed(() =>
+    this.saldoItems().reduce((s, i) => s + i.vendido, 0),
+  );
+  totalSaldoRestante = computed(() =>
+    this.saldoItems().reduce((s, i) => s + i.saldo, 0),
+  );
 
   // ── Abastecimiento signals ────────────────────────────────────
   showAbastecimientoModal = signal<boolean>(false);
@@ -1526,24 +1685,28 @@ export class VentasComponent implements OnInit, OnDestroy {
     this.socketService.nuevaVenta$
       .pipe(takeUntil(this.destroy$))
       .subscribe((payload) => {
-        if (payload.origen === 'bot') {
+        if (payload.origen === "bot") {
           // Construir un objeto Venta a partir del payload plano del servidor
           const nuevaVenta: Venta = {
-            id_venta:       payload.id_venta,
-            fecha:          payload.fecha,
-            id_sucursal:    payload.id_sucursal,
-            total:          payload.total,
+            id_venta: payload.id_venta,
+            fecha: payload.fecha,
+            id_sucursal: payload.id_sucursal,
+            total: payload.total,
             monto_efectivo: 0,
-            monto_qr:       0,
-            estado:         'COMPLETADA',
-            username:       'Bot WhatsApp',
+            monto_qr: 0,
+            estado: "COMPLETADA",
+            username: "Bot WhatsApp",
           };
-          this.ventas.update(current => [nuevaVenta, ...current]);
-          new Audio('assets/sounds/alert.wav').play().catch(() => {});
+          this.ventas.update((current) => [nuevaVenta, ...current]);
+          new Audio("assets/sounds/alert.wav").play().catch(() => {});
           const id = nuevaVenta.id_venta;
-          this.ventasBotHighlight.update(s => new Set([...s, id]));
+          this.ventasBotHighlight.update((s) => new Set([...s, id]));
           setTimeout(() => {
-            this.ventasBotHighlight.update(s => { const n = new Set(s); n.delete(id); return n; });
+            this.ventasBotHighlight.update((s) => {
+              const n = new Set(s);
+              n.delete(id);
+              return n;
+            });
           }, 5000);
         }
       });
@@ -1763,6 +1926,33 @@ export class VentasComponent implements OnInit, OnDestroy {
   private sanitizeImageUrl(url: string | null | undefined): string | null {
     if (!url) return null;
     return url.replace(/\\/g, "");
+  }
+
+  // ── Saldo methods ──────────────────────────────────────────────
+
+  openSaldoModal() {
+    this.showSaldoModal.set(true);
+    this.loadSaldo();
+  }
+
+  closeSaldoModal() {
+    this.showSaldoModal.set(false);
+  }
+
+  loadSaldo() {
+    const sucId = this.currentSucursalId();
+    if (!sucId) return;
+    this.isLoadingSaldo.set(true);
+    this.saldoItems.set([]);
+    this.abastecimientoService
+      .getSaldo(this.fechaInicio(), sucId)
+      .subscribe({
+        next: (res) => {
+          if (res.success) this.saldoItems.set(res.data);
+          this.isLoadingSaldo.set(false);
+        },
+        error: () => this.isLoadingSaldo.set(false),
+      });
   }
 
   // ── Abastecimiento methods ────────────────────────────────────
