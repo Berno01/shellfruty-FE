@@ -7,12 +7,12 @@ export const BOT_USER_ID = 3;
 
 /** Estructura exacta del payload que emite el servidor en el evento "nueva_venta" */
 export interface NuevaVentaPayload {
-  origen: string;        // "bot" cuando viene del bot de WhatsApp
+  origen: string; // "bot" cuando viene del bot de WhatsApp
   id_venta: number;
   total: number;
-  fecha: string;         // "YYYY-MM-DD" o ISO
+  fecha: string; // "YYYY-MM-DD" o ISO
   id_sucursal: number;
-  detalles: unknown[];   // array de ítems (no usado en la lista, sólo en detalle)
+  detalles: unknown[]; // array de ítems (no usado en la lista, sólo en detalle)
 }
 
 @Injectable({
@@ -25,7 +25,7 @@ export class VentasSocketService implements OnDestroy {
   readonly nuevaVenta$: Observable<NuevaVentaPayload>;
 
   constructor() {
-    this.socket = io("http://132.145.165.40:3001", {
+    this.socket = io("https://ws.sistemastarija.com", {
       transports: ["websocket"],
       reconnectionAttempts: 5,
       reconnectionDelay: 3000,
