@@ -9,7 +9,7 @@ export interface Venta {
   username: string;
 }
 
-export type VentaEstado = "PENDIENTE" | "COMPLETADA" | "CANCELADA";
+export type VentaEstado = "PENDIENTE" | "COMPLETADA" | "CANCELADA" | "ENVIADO" | "ENTREGADO";
 
 export interface VentaDetalle {
   id_venta: number;

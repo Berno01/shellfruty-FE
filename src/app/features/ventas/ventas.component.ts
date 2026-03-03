@@ -1665,13 +1665,15 @@ export class VentasComponent implements OnInit, OnDestroy {
   userSucursal: number | null = null;
   userRol: number | null = null;
 
-  // Computed totals
+  // Computed totals — solo ENVIADO y ENTREGADO
   totales = computed(() => {
-    const ventasActivas = this.ventas().filter((v) => v.estado !== "CANCELADA");
+    const ventasContables = this.ventas().filter(
+      (v) => v.estado === "ENVIADO" || v.estado === "ENTREGADO",
+    );
     return {
-      efectivo: ventasActivas.reduce((sum, v) => sum + v.monto_efectivo, 0),
-      qr: ventasActivas.reduce((sum, v) => sum + v.monto_qr, 0),
-      total: ventasActivas.reduce((sum, v) => sum + v.total, 0),
+      efectivo: ventasContables.reduce((sum, v) => sum + v.monto_efectivo, 0),
+      qr: ventasContables.reduce((sum, v) => sum + v.monto_qr, 0),
+      total: ventasContables.reduce((sum, v) => sum + v.total, 0),
     };
   });
 
@@ -1686,20 +1688,10 @@ export class VentasComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe((payload) => {
         if (payload.origen === "bot") {
-          // Construir un objeto Venta a partir del payload plano del servidor
-          const nuevaVenta: Venta = {
-            id_venta: payload.id_venta,
-            fecha: payload.fecha,
-            id_sucursal: payload.id_sucursal,
-            total: payload.total,
-            monto_efectivo: 0,
-            monto_qr: 0,
-            estado: "COMPLETADA",
-            username: "Bot WhatsApp",
-          };
-          this.ventas.update((current) => [nuevaVenta, ...current]);
+          const id = payload.id_venta;
+          // Reproducir alerta
           new Audio("assets/sounds/alert.wav").play().catch(() => {});
-          const id = nuevaVenta.id_venta;
+          // Marcar para highlight (5s) — la fila se activa en cuanto loadVentas la renderiza
           this.ventasBotHighlight.update((s) => new Set([...s, id]));
           setTimeout(() => {
             this.ventasBotHighlight.update((s) => {
@@ -1708,6 +1700,8 @@ export class VentasComponent implements OnInit, OnDestroy {
               return n;
             });
           }, 5000);
+          // Refrescar la tabla desde la DB (la venta llega con estado PENDIENTE real)
+          this.loadVentas();
         }
       });
   }
