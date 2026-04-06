@@ -672,14 +672,15 @@ export class NuevaVentaComponent implements OnInit {
 
     // Resuelve el nombre de categoría (minúsculas) a partir del id
     const catName = (id: number | undefined): string => {
-      if (!id) return '';
+      if (!id) return "";
       return (
-        cats.find((c) => c.id_categoria_menu === id)?.nombre_categoria_menu ?? ''
+        cats.find((c) => c.id_categoria_menu === id)?.nombre_categoria_menu ??
+        ""
       ).toLowerCase();
     };
 
     // Orden de prioridad: vasos → crepes → brownies → resto
-    const PRIORITY = ['vaso', 'crepe', 'brownie'];
+    const PRIORITY = ["vaso", "crepe", "brownie"];
 
     const priorityOf = (id: number | undefined): number => {
       const name = catName(id);
@@ -992,6 +993,9 @@ export class NuevaVentaComponent implements OnInit {
   }
 
   confirmVenta() {
+    // Evita doble envío si ya hay una solicitud en curso.
+    if (this.isSubmitting()) return;
+
     if (this.cart().length === 0) return;
 
     // Validar que se hayan definido los montos de pago
@@ -1042,7 +1046,6 @@ export class NuevaVentaComponent implements OnInit {
 
     request$.subscribe({
       next: (response) => {
-        this.isSubmitting.set(false);
         if (response.success) {
           const action = this.isEditing() ? "actualizada" : "creada";
           console.log(`Venta ${action} exitosamente:`, response.data);
@@ -1052,11 +1055,31 @@ export class NuevaVentaComponent implements OnInit {
             response.data,
             this.nombreSucursal(),
           );
-          // Redirigir a la lista de ventas tras breve pausa
+          // Mantener el estado de envío activo hasta terminar la navegación,
+          // para evitar registros duplicados por clics rápidos.
           setTimeout(() => {
-            this.router.navigate(["/ventas"]);
+            this.router
+              .navigate(["/ventas"])
+              .then((navigated) => {
+                if (!navigated) {
+                  this.isSubmitting.set(false);
+                  this.triggerNotification(
+                    "No se pudo redirigir al historial. Intenta nuevamente.",
+                    "error",
+                  );
+                }
+              })
+              .catch((err) => {
+                console.error("Error redirigiendo al historial de ventas:", err);
+                this.isSubmitting.set(false);
+                this.triggerNotification(
+                  "Error al redirigir al historial. Intenta nuevamente.",
+                  "error",
+                );
+              });
           }, 1000);
         } else {
+          this.isSubmitting.set(false);
           this.triggerNotification("Error inesperado en el servidor", "error");
         }
       },
