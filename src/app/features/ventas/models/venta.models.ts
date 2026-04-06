@@ -7,9 +7,15 @@ export interface Venta {
   total: number;
   estado: VentaEstado;
   username: string;
+  is_updated?: boolean;
 }
 
-export type VentaEstado = "PENDIENTE" | "COMPLETADA" | "CANCELADA" | "ENVIADO" | "ENTREGADO";
+export type VentaEstado =
+  | "PENDIENTE"
+  | "COMPLETADA"
+  | "CANCELADA"
+  | "ENVIADO"
+  | "ENTREGADO";
 
 export interface VentaDetalle {
   id_venta: number;
@@ -22,7 +28,55 @@ export interface VentaDetalle {
   username: string | null;
   created_by: number;
   updated_by: number;
+  is_updated?: boolean;
   detalles: DetalleVentaItem[];
+}
+
+export interface VentaHistorySnapshotVenta {
+  id_venta: number;
+  fecha: string;
+  id_sucursal: number;
+  monto_efectivo: number;
+  monto_qr: number;
+  total: number;
+  estado: VentaEstado | string;
+  is_updated: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by: number;
+  updated_by: number;
+}
+
+export interface VentaHistorySnapshotDetalle {
+  id_detalle_venta: number;
+  id_menu: number;
+  cantidad: number;
+  precio_unitario: number;
+  total: number;
+  personalizaciones: Personalizacion[];
+}
+
+export interface VentaHistorySnapshotMetadata {
+  edited_by: number | null;
+  edited_at: string | null;
+}
+
+export interface VentaHistoryItem {
+  version: number;
+  source: "AUDITORIA" | "ACTUAL" | string;
+  timestamp: string;
+  id_auditoria: number | null;
+  snapshot: {
+    venta: VentaHistorySnapshotVenta;
+    detalles: VentaHistorySnapshotDetalle[];
+    metadata: VentaHistorySnapshotMetadata;
+  };
+}
+
+export interface VentaHistoryResponse {
+  id_venta: number;
+  total_versiones: number;
+  historial: VentaHistoryItem[];
 }
 
 export interface DetalleVentaItem {

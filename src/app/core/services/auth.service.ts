@@ -1,17 +1,17 @@
+import { Injectable } from "@angular/core";
+import { HttpClient } from "@angular/common/http";
+import { Router } from "@angular/router";
+import { Observable, tap, BehaviorSubject } from "rxjs";
+import { UserResponse } from "../models/user-response.model";
+import { environment } from "../../../environments/environment";
 
-import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Router } from '@angular/router';
-import { Observable, tap, BehaviorSubject } from 'rxjs';
-import { UserResponse } from '../models/user-response.model';
-import { environment } from '../../../environments/environment';
-
-@Injectable({ providedIn: 'root' })
-
+@Injectable({ providedIn: "root" })
 export class AuthService {
-  private readonly storageKey = 'currentUser';
-  private readonly apiUrl = environment.apiUrl + 'usuario/login';
-  private _user$ = new BehaviorSubject<UserResponse | null>(this.getUserFromStorage());
+  private readonly storageKey = "currentUser";
+  private readonly apiUrl = environment.apiUrl + "usuario/login";
+  private _user$ = new BehaviorSubject<UserResponse | null>(
+    this.getUserFromStorage(),
+  );
 
   get user$() {
     return this._user$.asObservable();
@@ -27,7 +27,10 @@ export class AuthService {
     }
   }
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(
+    private http: HttpClient,
+    private router: Router,
+  ) {}
 
   /**
    * Devuelve el usuario actual desde localStorage, o null si no hay sesión.
@@ -53,12 +56,14 @@ export class AuthService {
   }
 
   login(username: string, password: string): Observable<UserResponse> {
-    return this.http.post<UserResponse>(this.apiUrl, { username, password }).pipe(
-      tap(user => {
-        localStorage.setItem(this.storageKey, JSON.stringify(user));
-        this._user$.next(user);
-      })
-    );
+    return this.http
+      .post<UserResponse>(this.apiUrl, { username, password })
+      .pipe(
+        tap((user) => {
+          localStorage.setItem(this.storageKey, JSON.stringify(user));
+          this._user$.next(user);
+        }),
+      );
   }
 
   isLoggedIn(): boolean {
@@ -68,7 +73,6 @@ export class AuthService {
   logout(): void {
     localStorage.removeItem(this.storageKey);
     this._user$.next(null);
-    this.router.navigate(['/login']);
+    this.router.navigate(["/login"]);
   }
-
 }

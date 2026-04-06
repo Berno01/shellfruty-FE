@@ -16,6 +16,6 @@ export class AppComponent {
   title = "shellfruty-front";
   constructor(private router: Router) {}
   isLoginRoute(): boolean {
-    return this.router.url === '/login';
+    return this.router.url === "/login";
   }
 }

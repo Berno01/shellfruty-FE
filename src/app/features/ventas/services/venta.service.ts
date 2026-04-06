@@ -6,6 +6,7 @@ import { AuthService } from "../../../core/services/auth.service";
 import {
   Venta,
   VentaDetalle,
+  VentaHistoryResponse,
   VentaQueryParams,
   ApiResponse,
   MenuVenta,
@@ -66,6 +67,15 @@ export class VentaService {
   }
 
   /**
+   * Obtiene historial de versiones de una venta (auditoría + versión actual)
+   */
+  getVentaHistory(id: number): Observable<ApiResponse<VentaHistoryResponse>> {
+    return this.apiService.get<ApiResponse<VentaHistoryResponse>>(
+      `${this.ENDPOINT}/${id}/historial`,
+    );
+  }
+
+  /**
    * Elimina (desactiva) una venta
    */
   deleteVenta(id: number): Observable<ApiResponse<any>> {
@@ -75,6 +85,18 @@ export class VentaService {
     };
     return this.apiService.delete<ApiResponse<any>>(
       `${this.ENDPOINT}/${id}`,
+      body,
+    );
+  }
+
+  /**
+   * Cancela una venta (solo admin)
+   */
+  cancelarVenta(id: number): Observable<ApiResponse<any>> {
+    const user = this.authService.currentUser;
+    const body = { id_usuario: user?.id_usuario || 1 };
+    return this.apiService.patch<ApiResponse<any>>(
+      `${this.ENDPOINT}/${id}/cancelar`,
       body,
     );
   }
@@ -288,6 +310,3 @@ export class VentaService {
     return user?.nombre_rol?.toLowerCase().includes("admin") || false;
   }
 }
-
-
-

@@ -1070,7 +1070,10 @@ export class NuevaVentaComponent implements OnInit {
                 }
               })
               .catch((err) => {
-                console.error("Error redirigiendo al historial de ventas:", err);
+                console.error(
+                  "Error redirigiendo al historial de ventas:",
+                  err,
+                );
                 this.isSubmitting.set(false);
                 this.triggerNotification(
                   "Error al redirigir al historial. Intenta nuevamente.",

@@ -23,6 +23,8 @@ import {
   Venta,
   VentaEstado,
   VentaDetalle,
+  VentaHistoryResponse,
+  VentaHistoryItem,
   DetalleVentaItem,
   MenuVenta,
   Abastecimiento,
@@ -259,7 +261,7 @@ import {
               [title]="
                 currentSucursalId() === 0
                   ? 'Selecciona una sucursal primero'
-                  : 'Ver saldo de ventas del d\u00eda'
+                  : 'Ver saldo de ventas del día'
               "
             >
               <svg
@@ -378,6 +380,9 @@ import {
                     *ngFor="let venta of ventas()"
                     class="hover:bg-pink-50/50 transition-colors group"
                     [class.opacity-60]="venta.estado === 'CANCELADA'"
+                    [class.bg-amber-50]="
+                      venta.is_updated && venta.estado !== 'CANCELADA'
+                    "
                     [class.venta-bot]="ventasBotHighlight().has(venta.id_venta)"
                   >
                     <!-- ID Venta -->
@@ -385,6 +390,11 @@ import {
                       <span
                         class="inline-block px-2 py-0.5 bg-slate-100 text-slate-500 text-xs font-black rounded-md"
                         >#{{ venta.id_venta }}</span
+                      >
+                      <span
+                        *ngIf="venta.is_updated"
+                        class="inline-block mt-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black rounded-md"
+                        >EDITADA</span
                       >
                     </td>
 
@@ -486,12 +496,12 @@ import {
                           </svg>
                         </button>
 
-                        <!-- Botón Enviar (solo para PENDIENTE) -->
+                        <!-- Botón Enviar: PENDIENTE → ENVIADO (todos los roles) -->
                         <button
                           *ngIf="venta.estado === 'PENDIENTE'"
                           (click)="enviarVenta(venta)"
                           class="p-1 text-slate-500 hover:text-blue-600 transition-colors"
-                          title="Enviar venta"
+                          title="Marcar como enviado"
                         >
                           <svg
                             xmlns="http://www.w3.org/2000/svg"
@@ -509,8 +519,32 @@ import {
                           </svg>
                         </button>
 
-                        <!-- Botón Editar -->
+                        <!-- Botón Cancelar: solo admin, cualquier estado excepto CANCELADA -->
                         <button
+                          *ngIf="isAdmin() && venta.estado !== 'CANCELADA'"
+                          (click)="cancelarVenta(venta)"
+                          class="p-1 text-slate-500 hover:text-orange-600 transition-colors"
+                          title="Cancelar venta"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            class="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                            />
+                          </svg>
+                        </button>
+
+                        <!-- Botón Editar: admin y vendedor -->
+                        <button
+                          *ngIf="canEditVentas()"
                           [routerLink]="['/ventas/editar', venta.id_venta]"
                           class="p-1 text-slate-500 hover:text-amber-600 transition-colors"
                           title="Editar venta"
@@ -531,8 +565,9 @@ import {
                           </svg>
                         </button>
 
-                        <!-- Botón Eliminar -->
+                        <!-- Botón Eliminar: solo admin -->
                         <button
+                          *ngIf="isAdmin()"
                           (click)="deleteVenta(venta)"
                           class="p-1 text-slate-500 hover:text-red-600 transition-colors"
                           title="Eliminar"
@@ -681,6 +716,13 @@ import {
               class="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-pink-200 transition-all duration-300 p-5 flex flex-col justify-between group relative overflow-hidden"
               [class.opacity-75]="venta.estado === 'CANCELADA'"
               [class.bg-slate-50]="venta.estado === 'CANCELADA'"
+              [class.border-amber-300]="
+                venta.is_updated && venta.estado !== 'CANCELADA'
+              "
+              [ngClass]="{
+                'bg-amber-50/40':
+                  venta.is_updated && venta.estado !== 'CANCELADA',
+              }"
               [class.venta-bot]="ventasBotHighlight().has(venta.id_venta)"
             >
               <!-- Card Top: Date & Status -->
@@ -688,6 +730,11 @@ import {
                 <div class="flex flex-col">
                   <span class="text-xs font-black text-[#eaa6b6] mb-1"
                     >#{{ venta.id_venta }}</span
+                  >
+                  <span
+                    *ngIf="venta.is_updated"
+                    class="inline-flex w-fit mb-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-black rounded-md"
+                    >EDITADA</span
                   >
                   <span
                     class="text-sm font-bold text-slate-800 flex items-center gap-1"
@@ -837,12 +884,12 @@ import {
                 </button>
 
                 <div class="flex items-center gap-1">
-                  <!-- Botón Enviar (solo para PENDIENTE) -->
+                  <!-- Botón Enviar: PENDIENTE → ENVIADO (todos los roles) -->
                   <button
                     *ngIf="venta.estado === 'PENDIENTE'"
                     (click)="enviarVenta(venta)"
                     class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-slate-50 hover:bg-blue-50 rounded-lg"
-                    title="Enviar venta"
+                    title="Marcar como enviado"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -860,8 +907,32 @@ import {
                     </svg>
                   </button>
 
-                  <!-- Botón Editar -->
+                  <!-- Botón Cancelar: solo admin, cualquier estado excepto CANCELADA -->
                   <button
+                    *ngIf="isAdmin() && venta.estado !== 'CANCELADA'"
+                    (click)="cancelarVenta(venta)"
+                    class="p-2 text-slate-400 hover:text-orange-600 transition-colors bg-slate-50 hover:bg-orange-50 rounded-lg"
+                    title="Cancelar venta"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-4 w-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+                      />
+                    </svg>
+                  </button>
+
+                  <!-- Botón Editar: admin y vendedor -->
+                  <button
+                    *ngIf="canEditVentas()"
                     [routerLink]="['/ventas/editar', venta.id_venta]"
                     class="p-2 text-slate-400 hover:text-amber-600 transition-colors bg-slate-50 hover:bg-amber-50 rounded-lg"
                     title="Editar venta"
@@ -882,8 +953,9 @@ import {
                     </svg>
                   </button>
 
-                  <!-- Botón Eliminar -->
+                  <!-- Botón Eliminar: solo admin -->
                   <button
+                    *ngIf="isAdmin()"
                     (click)="deleteVenta(venta)"
                     class="p-2 text-slate-400 hover:text-red-600 transition-colors bg-slate-50 hover:bg-red-50 rounded-lg"
                     title="Eliminar"
@@ -1269,8 +1341,18 @@ import {
             (click)="closeSaldoModal()"
             class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
           >
-            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              class="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -1279,7 +1361,9 @@ import {
         <div class="overflow-y-auto flex-1 p-5">
           <!-- Loading -->
           <div *ngIf="isLoadingSaldo()" class="flex justify-center py-10">
-            <div class="h-8 w-8 border-4 border-pink-200 border-t-[#eaa6b6] rounded-full animate-spin"></div>
+            <div
+              class="h-8 w-8 border-4 border-pink-200 border-t-[#eaa6b6] rounded-full animate-spin"
+            ></div>
           </div>
 
           <!-- Empty -->
@@ -1291,12 +1375,24 @@ import {
           </p>
 
           <!-- Table -->
-          <div *ngIf="!isLoadingSaldo() && saldoItems().length > 0" class="space-y-2">
+          <div
+            *ngIf="!isLoadingSaldo() && saldoItems().length > 0"
+            class="space-y-2"
+          >
             <!-- Header row -->
             <div class="grid grid-cols-3 gap-2 px-3 pb-1">
-              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Producto</span>
-              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 text-center">Vendido</span>
-              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 text-right">Saldo</span>
+              <span
+                class="text-[11px] font-bold uppercase tracking-wider text-slate-400"
+                >Producto</span
+              >
+              <span
+                class="text-[11px] font-bold uppercase tracking-wider text-slate-400 text-center"
+                >Vendido</span
+              >
+              <span
+                class="text-[11px] font-bold uppercase tracking-wider text-slate-400 text-right"
+                >Saldo</span
+              >
             </div>
             <div
               *ngFor="let item of saldoItems()"
@@ -1305,7 +1401,10 @@ import {
               [class.border-pink-200]="item.saldo === 0"
               [class.bg-pink-50]="item.saldo === 0"
             >
-              <span class="text-sm font-bold text-slate-800 truncate" [title]="item.nombre_menu">
+              <span
+                class="text-sm font-bold text-slate-800 truncate"
+                [title]="item.nombre_menu"
+              >
                 {{ item.nombre_menu }}
               </span>
               <span class="text-sm font-black text-slate-700 text-center">
@@ -1325,13 +1424,20 @@ import {
             </div>
 
             <!-- Totals row -->
-            <div class="grid grid-cols-3 gap-2 items-center bg-white rounded-xl px-3 py-2.5 border border-slate-200 mt-1">
-              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Total</span>
+            <div
+              class="grid grid-cols-3 gap-2 items-center bg-white rounded-xl px-3 py-2.5 border border-slate-200 mt-1"
+            >
+              <span
+                class="text-xs font-bold uppercase tracking-wider text-slate-500"
+                >Total</span
+              >
               <span class="text-sm font-black text-slate-900 text-center">
                 {{ totalVendidoSaldo() }}
               </span>
               <div class="flex justify-end">
-                <span class="inline-flex items-center justify-center min-w-[2.25rem] px-2 py-0.5 rounded-lg text-sm font-black bg-slate-100 text-slate-700">
+                <span
+                  class="inline-flex items-center justify-center min-w-[2.25rem] px-2 py-0.5 rounded-lg text-sm font-black bg-slate-100 text-slate-700"
+                >
                   {{ totalSaldoRestante() }}
                 </span>
               </div>
@@ -1340,7 +1446,9 @@ import {
         </div>
 
         <!-- Footer -->
-        <div class="shrink-0 bg-white border-t border-slate-200 p-4 flex justify-end rounded-b-2xl">
+        <div
+          class="shrink-0 bg-white border-t border-slate-200 p-4 flex justify-end rounded-b-2xl"
+        >
           <button
             (click)="closeSaldoModal()"
             class="px-5 py-2.5 rounded-xl text-slate-600 font-bold hover:bg-slate-100 transition-colors text-sm"
@@ -1569,6 +1677,8 @@ import {
             Cerrar
           </button>
           <button
+            (click)="openHistoryModal()"
+            [disabled]="!detalleVenta() || isLoadingHistory()"
             class="px-6 py-3 rounded-xl bg-black text-white font-bold hover:bg-slate-800 transition-colors flex items-center gap-2"
           >
             <svg
@@ -1585,8 +1695,182 @@ import {
                 d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
               />
             </svg>
-            Imprimir Recibo
+            {{ isLoadingHistory() ? "Cargando historial..." : "Ver Historial" }}
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Historial de Cambios -->
+    <div
+      *ngIf="showHistoryModal()"
+      class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      (click)="closeHistoryModal()"
+    >
+      <div
+        (click)="$event.stopPropagation()"
+        class="bg-white rounded-2xl w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-y-auto"
+      >
+        <div
+          class="sticky top-0 bg-white border-b border-slate-200 p-5 flex items-center justify-between rounded-t-2xl"
+        >
+          <div>
+            <h2 class="text-xl font-extrabold text-black">
+              Historial de Modificaciones
+            </h2>
+            <p class="text-sm text-slate-500 font-medium">
+              Venta #{{ historyData()?.id_venta }} ·
+              {{ historyData()?.total_versiones || 0 }} versión(es)
+            </p>
+          </div>
+          <button
+            (click)="closeHistoryModal()"
+            class="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div class="p-5 space-y-4">
+          <div
+            *ngIf="isLoadingHistory()"
+            class="flex items-center justify-center py-8"
+          >
+            <div
+              class="h-10 w-10 border-4 border-pink-200 border-t-[#eaa6b6] rounded-full animate-spin"
+            ></div>
+          </div>
+
+          <p
+            *ngIf="
+              !isLoadingHistory() &&
+              (!historyData() || historyItems().length === 0)
+            "
+            class="text-slate-500 text-sm italic text-center py-6"
+          >
+            No hay historial disponible para esta venta.
+          </p>
+
+          <div
+            *ngIf="!isLoadingHistory() && historyItems().length > 0"
+            class="space-y-4"
+          >
+            <div
+              *ngFor="let item of historyItems(); let idx = index"
+              class="rounded-xl border p-4"
+              [ngClass]="{
+                'border-amber-200 bg-amber-50/40': item.source === 'AUDITORIA',
+                'border-green-200 bg-green-50/40': item.source === 'ACTUAL',
+              }"
+            >
+              <div
+                class="flex flex-wrap items-center justify-between gap-2 mb-3"
+              >
+                <div class="flex items-center gap-2">
+                  <span
+                    class="text-xs px-2 py-1 rounded-md font-black bg-slate-900 text-white"
+                  >
+                    V{{ item.version }}
+                  </span>
+                  <span
+                    class="text-xs px-2 py-1 rounded-md font-black"
+                    [class.bg-amber-100]="item.source === 'AUDITORIA'"
+                    [class.text-amber-700]="item.source === 'AUDITORIA'"
+                    [class.bg-green-100]="item.source === 'ACTUAL'"
+                    [class.text-green-700]="item.source === 'ACTUAL'"
+                  >
+                    {{ item.source }}
+                  </span>
+                </div>
+                <div class="text-xs text-slate-500 font-semibold">
+                  {{ formatHistoryTimestamp(item.timestamp) }}
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div class="bg-white border border-slate-200 rounded-lg p-2.5">
+                  <p class="text-[10px] uppercase font-bold text-slate-500">
+                    Sucursal
+                  </p>
+                  <p class="text-sm font-black text-slate-800">
+                    {{ getNombreSucursal(item.snapshot.venta.id_sucursal) }}
+                  </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-lg p-2.5">
+                  <p class="text-[10px] uppercase font-bold text-slate-500">
+                    Efectivo
+                  </p>
+                  <p class="text-sm font-black text-slate-800">
+                    Bs. {{ item.snapshot.venta.monto_efectivo.toFixed(2) }}
+                  </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-lg p-2.5">
+                  <p class="text-[10px] uppercase font-bold text-slate-500">
+                    QR
+                  </p>
+                  <p class="text-sm font-black text-slate-800">
+                    Bs. {{ item.snapshot.venta.monto_qr.toFixed(2) }}
+                  </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-lg p-2.5">
+                  <p class="text-[10px] uppercase font-bold text-slate-500">
+                    Total
+                  </p>
+                  <p class="text-sm font-black text-slate-900">
+                    Bs. {{ item.snapshot.venta.total.toFixed(2) }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="bg-white border border-slate-200 rounded-lg p-3">
+                <p class="text-xs uppercase font-bold text-slate-500 mb-2">
+                  Detalle en esta versión
+                </p>
+                <div
+                  class="space-y-1.5"
+                  *ngIf="
+                    item.snapshot.detalles.length > 0;
+                    else emptyHistoryDetail
+                  "
+                >
+                  <div
+                    *ngFor="let detalle of item.snapshot.detalles"
+                    class="flex items-center justify-between text-sm"
+                  >
+                    <span class="font-semibold text-slate-700">
+                      {{ getMenuName(detalle.id_menu) }} x{{ detalle.cantidad }}
+                    </span>
+                    <span class="font-black text-slate-900"
+                      >Bs. {{ detalle.total.toFixed(2) }}</span
+                    >
+                  </div>
+                </div>
+                <ng-template #emptyHistoryDetail>
+                  <p class="text-sm text-slate-400 italic">
+                    Sin detalle registrado.
+                  </p>
+                </ng-template>
+              </div>
+
+              <div class="mt-2 text-[11px] text-slate-500 font-medium">
+                Editado por: {{ item.snapshot.metadata.edited_by ?? "-" }} ·
+                {{ item.snapshot.metadata.edited_at || "Sin dato" }}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1629,7 +1913,13 @@ export class VentasComponent implements OnInit, OnDestroy {
   isRangeMode = signal<boolean>(false); // Modo de rango de fechas
   showDetalleModal = signal<boolean>(false);
   detalleVenta = signal<VentaDetalle | null>(null);
+  showHistoryModal = signal<boolean>(false);
+  isLoadingHistory = signal<boolean>(false);
+  historyData = signal<VentaHistoryResponse | null>(null);
   isLoading = signal<boolean>(false); // Nuevo signal para loading state
+  historyItems = computed<VentaHistoryItem[]>(
+    () => this.historyData()?.historial ?? [],
+  );
 
   // ── Saldo signals ──────────────────────────────────────────────
   showSaldoModal = signal<boolean>(false);
@@ -1816,6 +2106,8 @@ export class VentasComponent implements OnInit, OnDestroy {
 
   closeDetalleModal() {
     this.showDetalleModal.set(false);
+    this.showHistoryModal.set(false);
+    this.historyData.set(null);
     this.detalleVenta.set(null);
   }
 
@@ -1860,15 +2152,11 @@ export class VentasComponent implements OnInit, OnDestroy {
   }
 
   enviarVenta(venta: Venta) {
-    if (
-      confirm(
-        `¿Enviar la venta #${venta.id_venta}?\nCambiará de PENDIENTE a ENVIADO.`,
-      )
-    ) {
+    if (confirm(`¿Marcar como ENVIADO la venta #${venta.id_venta}?`)) {
       this.ventaService.enviarVenta(venta.id_venta).subscribe({
         next: (response) => {
           if (response.success) {
-            this.loadVentas(); // Reload list
+            this.loadVentas();
           }
         },
         error: (err) => console.error("Error enviando venta", err),
@@ -1876,8 +2164,77 @@ export class VentasComponent implements OnInit, OnDestroy {
     }
   }
 
+  cancelarVenta(venta: Venta) {
+    if (
+      confirm(
+        `¿Cancelar la venta #${venta.id_venta} por Bs. ${venta.total.toFixed(2)}?\nEsta acción no se puede deshacer.`,
+      )
+    ) {
+      this.ventaService.cancelarVenta(venta.id_venta).subscribe({
+        next: (response) => {
+          if (response.success) {
+            this.loadVentas();
+          }
+        },
+        error: (err) => console.error("Error cancelando venta", err),
+      });
+    }
+  }
+
   isAdmin(): boolean {
     return this.userRol === 1;
+  }
+
+  canEditVentas(): boolean {
+    return this.userRol === 1 || this.userRol === 2;
+  }
+
+  openHistoryModal() {
+    const venta = this.detalleVenta();
+    if (!venta?.id_venta) return;
+
+    this.showHistoryModal.set(true);
+    this.isLoadingHistory.set(true);
+    this.historyData.set(null);
+
+    this.ventaService.getVentaHistory(venta.id_venta).subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          this.historyData.set(response.data);
+        }
+        this.isLoadingHistory.set(false);
+      },
+      error: (err) => {
+        console.error("Error cargando historial de venta", err);
+        this.isLoadingHistory.set(false);
+      },
+    });
+  }
+
+  closeHistoryModal() {
+    this.showHistoryModal.set(false);
+  }
+
+  getMenuName(idMenu: number): string {
+    const menu = this.ventaService
+      .getCachedMenus()
+      .find((m) => m.id_menu === idMenu);
+    return menu?.nombre_menu || `Menu #${idMenu}`;
+  }
+
+  formatHistoryTimestamp(value: string): string {
+    const normalized = value.replace(" ", "T");
+    const date = new Date(normalized);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+    return date.toLocaleString("es-BO", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }
 
   formatDateTime(fecha: string): string {
@@ -1938,15 +2295,13 @@ export class VentasComponent implements OnInit, OnDestroy {
     if (!sucId) return;
     this.isLoadingSaldo.set(true);
     this.saldoItems.set([]);
-    this.abastecimientoService
-      .getSaldo(this.fechaInicio(), sucId)
-      .subscribe({
-        next: (res) => {
-          if (res.success) this.saldoItems.set(res.data);
-          this.isLoadingSaldo.set(false);
-        },
-        error: () => this.isLoadingSaldo.set(false),
-      });
+    this.abastecimientoService.getSaldo(this.fechaInicio(), sucId).subscribe({
+      next: (res) => {
+        if (res.success) this.saldoItems.set(res.data);
+        this.isLoadingSaldo.set(false);
+      },
+      error: () => this.isLoadingSaldo.set(false),
+    });
   }
 
   // ── Abastecimiento methods ────────────────────────────────────

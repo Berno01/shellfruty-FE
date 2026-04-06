@@ -1,5 +1,5 @@
 import { Routes } from "@angular/router";
-import { AuthGuard } from './core/guards/auth.guard';
+import { AuthGuard } from "./core/guards/auth.guard";
 
 export const routes: Routes = [
   { path: "", redirectTo: "menu", pathMatch: "full" },
@@ -7,7 +7,7 @@ export const routes: Routes = [
     path: "login",
     loadComponent: () =>
       import("./features/auth/login/login.component").then(
-        (m) => m.LoginComponent
+        (m) => m.LoginComponent,
       ),
   },
   {

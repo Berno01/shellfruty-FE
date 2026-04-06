@@ -3,7 +3,7 @@ import { CommonModule } from "@angular/common";
 import { RouterModule } from "@angular/router";
 import { AuthService } from "../../../core/services/auth.service";
 import { SucursalService } from "../../../core/services/sucursal.service";
-import { Subscription } from 'rxjs';
+import { Subscription } from "rxjs";
 
 @Component({
   selector: "app-navbar",
@@ -322,7 +322,7 @@ export class ShellNavbarComponent implements OnInit {
       });
     }
     // Suscribirse a cambios de usuario
-    this.userSub = this.authService.user$.subscribe(user => {
+    this.userSub = this.authService.user$.subscribe((user) => {
       this.user = user;
     });
   }
